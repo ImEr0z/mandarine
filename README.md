@@ -14,7 +14,8 @@ Mandarine tourne discrètement dans la zone de notification. Les formats s'affic
 
 1. **Le geste.** Commencez à faire glisser un fichier depuis l'Explorateur ou le Bureau, puis appuyez sur <kbd>Maj</kbd> : un menu de formats apparaît sous le curseur. Relâchez le fichier sur le format voulu, ou sur l'en-tête du menu pour le garder ouvert et choisir au clic. Appuyer sur <kbd>Maj</kbd> *avant* de cliquer étendrait la sélection de l'Explorateur : la touche se presse une fois le glisser commencé.
 2. **Le clic droit.** « Convertir avec Mandarine » dans le menu contextuel de l'Explorateur (sous Windows 11 : « Afficher plus d'options »), ou « Envoyer vers > Mandarine ». Fonctionne avec une sélection de plusieurs fichiers.
-. **Le raccourci.** Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Espace</kbd> : la roue s'ouvre sous la souris. Le raccourci se change dans les paramètres.
+3. **La zone de dépôt.** Clic sur l'icône de notification : une zone reste ouverte en bas à droite de l'écran, il suffit d'y glisser des fichiers.
+4. **Le raccourci.** Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Espace</kbd> : la roue s'ouvre sous la souris. Le raccourci se change dans les paramètres.
 
 Les fichiers créés sont placés à côté de l'original (ou dans un dossier choisi). Un fichier existant n'est jamais écrasé : `photo.png` devient `photo (2).png`. Les fichiers déposés sont toujours copiés, jamais déplacés.
 
