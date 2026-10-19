@@ -66,6 +66,35 @@ public class FileToolTests : IDisposable
         Assert.Equal("ligne", File.ReadAllText(log));
     }
 
+    [SkippableFact]
+    public async Task Extract_7z_with_windows_tar()
+    {
+        var tar = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "tar.exe");
+        Skip.IfNot(OperatingSystem.IsWindows() && File.Exists(tar), "tar.exe absent");
+        var source = Directory.CreateDirectory(_dir.File("source")).FullName;
+        Directory.CreateDirectory(Path.Combine(source, "sous-dossier"));
+        File.WriteAllText(Path.Combine(source, "sous-dossier", "a.txt"), "A");
+        var archive = _dir.File("photos.7z");
+        await ProcessRunner.RunAsync(tar, ["--format", "7zip", "-cf", archive, "-C", source, "sous-dossier"], CancellationToken.None);
+
+        var extracted = (await _dir.RunAsync("archive.extract", archive)).OutputFiles[0];
+
+        Assert.Equal(_dir.File("photos"), extracted);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(extracted, "sous-dossier", "a.txt")));
+    }
+
+    [SkippableFact]
+    public async Task Broken_7z_is_reported_and_leaves_no_folder()
+    {
+        Skip.IfNot(OperatingSystem.IsWindows(), "tar.exe absent");
+        var broken = _dir.WriteText("faux.7z", "pas une archive");
+
+        var result = await _dir.Catalog.Find("archive.extract")!.RunAsync([broken], _dir.Context, null, CancellationToken.None);
+
+        Assert.Single(result.Errors);
+        Assert.False(Directory.Exists(_dir.File("faux")));
+    }
+
     [Fact]
     public async Task Zip_slip_entries_are_rejected()
     {

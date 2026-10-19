@@ -76,7 +76,10 @@ internal sealed class ZipAction : FileAction
     private static string EntryName(string relativePath) => relativePath.Replace('\\', '/');
 }
 
-/// <summary>Extracts ZIP, TAR, TAR.GZ and GZ archives into a folder next to the archive.</summary>
+/// <summary>
+/// Extracts ZIP, TAR, TAR.GZ, GZ, 7Z and RAR archives into a folder next to the archive.
+/// 7Z and RAR go through the bsdtar (libarchive) that ships with Windows as tar.exe.
+/// </summary>
 internal sealed class ExtractAction : PerFileAction
 {
     public override string Id => "archive.extract";
@@ -89,44 +92,83 @@ internal sealed class ExtractAction : PerFileAction
 
     public override bool Accepts(string path) => FileKinds.Detect(path) == FileKind.Archive;
 
-    protected override Task<string> ProcessAsync(
-        string input, ActionContext context, IProgress<double>? progress, CancellationToken cancellationToken) =>
-        Task.Run(() =>
+    protected override async Task<string> ProcessAsync(
+        string input, ActionContext context, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
+        var name = Path.GetFileName(input).ToLowerInvariant();
+        if (!name.EndsWith(".7z") && !name.EndsWith(".rar"))
         {
-            var name = Path.GetFileName(input).ToLowerInvariant();
-            if (name.EndsWith(".gz") && !name.EndsWith(".tar.gz"))
-            {
-                return Gunzip(input, context);
-            }
+            return await Task.Run(() => ExtractManaged(input, name, context), cancellationToken).ConfigureAwait(false);
+        }
 
-            var destination = OutputPaths.ForFolder(input, context.OutputDirectory);
-            try
-            {
-                Directory.CreateDirectory(destination);
-                if (name.EndsWith(".zip"))
-                {
-                    // Rejects entries that would escape the destination folder ("zip slip").
-                    ZipFile.ExtractToDirectory(input, destination, overwriteFiles: false);
-                }
-                else if (name.EndsWith(".tar"))
-                {
-                    TarFile.ExtractToDirectory(input, destination, overwriteFiles: false);
-                }
-                else
-                {
-                    using var file = File.OpenRead(input);
-                    using var gzip = new GZipStream(file, CompressionMode.Decompress);
-                    TarFile.ExtractToDirectory(gzip, destination, overwriteFiles: false);
-                }
-            }
-            catch
-            {
-                OutputPaths.Discard(destination);
-                throw;
-            }
+        var tar = FindBsdtar()
+            ?? throw new ExternalToolException("L'extraction 7Z et RAR n\u00E9cessite tar.exe (Windows 10 version 1803 ou plus r\u00E9cente).");
+        var destination = OutputPaths.ForFolder(input, context.OutputDirectory);
+        try
+        {
+            Directory.CreateDirectory(destination);
+            // bsdtar refuses absolute paths and ".." entries unless -P is given; -k never overwrites.
+            await ProcessRunner.RunAsync(tar, ["-x", "-k", "-f", input, "-C", destination], cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            OutputPaths.Discard(destination);
+            throw;
+        }
 
-            return destination;
-        }, cancellationToken);
+        return destination;
+    }
+
+    private static string? FindBsdtar()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var system = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "tar.exe");
+            return File.Exists(system) ? system : null;
+        }
+
+        return (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(dir => Path.Combine(dir, "bsdtar"))
+            .FirstOrDefault(File.Exists);
+    }
+
+    private static string ExtractManaged(string input, string name, ActionContext context)
+    {
+        if (name.EndsWith(".gz") && !name.EndsWith(".tar.gz"))
+        {
+            return Gunzip(input, context);
+        }
+
+        var destination = OutputPaths.ForFolder(input, context.OutputDirectory);
+        try
+        {
+            Directory.CreateDirectory(destination);
+            if (name.EndsWith(".zip"))
+            {
+                // Rejects entries that would escape the destination folder ("zip slip").
+                ZipFile.ExtractToDirectory(input, destination, overwriteFiles: false);
+            }
+            else if (name.EndsWith(".tar"))
+            {
+                TarFile.ExtractToDirectory(input, destination, overwriteFiles: false);
+            }
+            else
+            {
+                using var file = File.OpenRead(input);
+                using var gzip = new GZipStream(file, CompressionMode.Decompress);
+                TarFile.ExtractToDirectory(gzip, destination, overwriteFiles: false);
+            }
+        }
+        catch
+        {
+            OutputPaths.Discard(destination);
+            throw;
+        }
+
+        return destination;
+    }
 
     private static string Gunzip(string input, ActionContext context)
     {

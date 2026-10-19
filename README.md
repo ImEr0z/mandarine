@@ -35,7 +35,7 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 | JSON | YAML, CSV, XML | |
 | YAML, XML | JSON | |
 | CSV, TSV | JSON, XLSX\*, CSV ↔ TSV | |
-| Archive ZIP, TAR, TAR.GZ, GZ | | Extraire |
+| Archive ZIP, TAR, TAR.GZ, GZ, 7Z, RAR | | Extraire |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
 
 \* Nécessite un outil gratuit : **FFmpeg** pour l'audio et la vidéo, **LibreOffice** pour les documents Office. Au premier usage, Mandarine propose de l'installer via `winget`, puis reprend la conversion. Les tuiles concernées portent une petite flèche de téléchargement.
@@ -104,11 +104,10 @@ Un hook souris bas niveau (`WH_MOUSE_LL`, sur un thread dédié pour ne jamais r
 
 ## Statut et feuille de route
 
-Version 0.1. Le moteur de conversion est couvert par 75 tests automatisés (exécutés avec FFmpeg et LibreOffice réels). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
+Version 0.1. Le moteur de conversion est couvert par 77 tests automatisés (exécutés avec FFmpeg et LibreOffice réels). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
 
 Pistes :
 
-- extraction 7z et RAR (via `tar.exe` de Windows 11) ;
 - compression PDF, OCR, suppression d'arrière-plan ;
 - progression dans la zone de notification pour les longues vidéos ;
 - entrée dans le menu contextuel moderne de Windows 11 (nécessite un paquet MSIX signé) ;

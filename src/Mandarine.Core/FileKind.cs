@@ -58,7 +58,7 @@ public static class FileKinds
         Add(FileKind.Yaml, "yaml", "yml");
         Add(FileKind.Xml, "xml");
         Add(FileKind.Csv, "csv", "tsv");
-        Add(FileKind.Archive, "zip", "tar", "tgz", "gz");
+        Add(FileKind.Archive, "zip", "tar", "tgz", "gz", "7z", "rar");
         return map;
     }
 
