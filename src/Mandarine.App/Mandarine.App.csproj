@@ -13,7 +13,18 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WPF0001: ThemeMode is experimental. WFO0003: DPI awareness belongs in the manifest for a WPF app. -->
     <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
+    <!--
+      A tray utility idles almost all the time: no background GC thread, and a heap that gives memory back.
+      Do not enable EnableCompressionInSingleFile: compressed assemblies are inflated into private memory
+      at startup (about 75 MB more) instead of being mapped from the exe.
+    -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Keep WinForms and GDI+ types out of the global namespace: they clash with WPF (Application, Button...). -->

@@ -10,7 +10,7 @@ Get-Process Mandarine -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
 
 dotnet publish (Join-Path $root 'src\Mandarine.App') -c Release -r win-x64 --self-contained `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=none -o $publish
 if ($LASTEXITCODE -ne 0) { throw "La compilation a échoué." }
 Remove-Item (Join-Path $publish '*.pdb') -ErrorAction SilentlyContinue

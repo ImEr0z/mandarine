@@ -91,7 +91,7 @@ tests/
 dotnet test                                   # tests du moteur
 dotnet run --project src/Mandarine.App        # lancer l'application (Windows)
 dotnet publish src/Mandarine.App -c Release -r win-x64 --self-contained `
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 `.\run.ps1` recompile l'application dans `publish\` et la relance depuis là : le menu Démarrer, le clic droit et le lancement au démarrage utilisent alors toujours la dernière version du code.

@@ -1,3 +1,4 @@
+using System.Runtime;
 using System.Windows;
 using System.Windows.Threading;
 using Mandarine.App.Gestures;
@@ -13,6 +14,7 @@ namespace Mandarine.App;
 public partial class App : Application, IPanelHost
 {
     private static readonly TimeSpan LaunchBatchWindow = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan IdleReliefDelay = TimeSpan.FromSeconds(3);
 
     private readonly SettingsStore _store = new();
     private readonly List<string> _queuedFiles = [];
@@ -26,6 +28,7 @@ public partial class App : Application, IPanelHost
     private ConverterPanel? _dropZone;
     private SettingsWindow? _settingsWindow;
     private DispatcherTimer? _batchTimer;
+    private DispatcherTimer? _reliefTimer;
 
     public ActionCatalog Catalog { get; } = new();
 
@@ -78,6 +81,7 @@ public partial class App : Application, IPanelHost
         }
 
         HandleCommandLine(commandLine);
+        ScheduleIdleRelief();
     }
 
     private void CompleteFirstRun()
@@ -137,7 +141,7 @@ public partial class App : Application, IPanelHost
                 _queuedFiles.Clear();
                 if (batch.Count > 0)
                 {
-                    new ConverterPanel(this, PanelMode.Picker).ShowPicker(batch, NativeMethods.CursorPosition());
+                    Track(new ConverterPanel(this, PanelMode.Picker)).ShowPicker(batch, NativeMethods.CursorPosition());
                 }
             };
         }
@@ -155,7 +159,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        var panel = new ConverterPanel(this, PanelMode.Gesture);
+        var panel = Track(new ConverterPanel(this, PanelMode.Gesture));
         panel.Closed += (_, _) =>
         {
             if (ReferenceEquals(_gesturePanel, panel))
@@ -212,7 +216,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        _dropZone = new ConverterPanel(this, PanelMode.DropZone);
+        _dropZone = Track(new ConverterPanel(this, PanelMode.DropZone));
         _dropZone.Closed += (_, _) => _dropZone = null;
         _dropZone.ShowDropZone();
     }
@@ -225,7 +229,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        _settingsWindow = new SettingsWindow(_settings, InstallToolAsync);
+        _settingsWindow = Track(new SettingsWindow(_settings, InstallToolAsync));
         try
         {
             if (_settingsWindow.ShowDialog() == true && _settingsWindow.Result is { } updated)
@@ -291,6 +295,44 @@ public partial class App : Application, IPanelHost
             tools.Find(ExternalTool.Ffmpeg);
             tools.Find(ExternalTool.LibreOffice);
         });
+    }
+
+    // ---- Idle footprint ----
+
+    /// <summary>
+    /// Showing a panel loads WPF rendering, fonts and the conversion libraries (tens of MB). Once the
+    /// last window is gone, Mandarine goes back to waiting: collect everything and return the pages
+    /// to Windows so that the idle footprint stays small.
+    /// </summary>
+    private T Track<T>(T window)
+        where T : Window
+    {
+        window.Closed += (_, _) => ScheduleIdleRelief();
+        return window;
+    }
+
+    private void ScheduleIdleRelief()
+    {
+        if (_reliefTimer is null)
+        {
+            _reliefTimer = new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = IdleReliefDelay };
+            _reliefTimer.Tick += (_, _) =>
+            {
+                _reliefTimer.Stop();
+                if (Windows.Cast<Window>().Any(w => w.IsVisible))
+                {
+                    return;
+                }
+
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+                GC.WaitForPendingFinalizers();
+                NativeMethods.SetProcessWorkingSetSize(NativeMethods.GetCurrentProcess(), -1, -1);
+            };
+        }
+
+        _reliefTimer.Stop();
+        _reliefTimer.Start();
     }
 
     // ---- Lifetime ----

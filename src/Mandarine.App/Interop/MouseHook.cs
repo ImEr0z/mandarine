@@ -91,18 +91,23 @@ internal sealed class MouseHook : IDisposable
         {
             try
             {
-                var info = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(data);
-                switch ((int)message)
+                // Called for every mouse event system-wide: read the point in place, without marshaling.
+                var msg = (int)message;
+                if (msg is WM_LBUTTONDOWN or WM_LBUTTONUP or WM_MOUSEMOVE)
                 {
-                    case WM_LBUTTONDOWN:
-                        LeftButtonDown?.Invoke(info.pt);
-                        break;
-                    case WM_LBUTTONUP:
-                        LeftButtonUp?.Invoke(info.pt);
-                        break;
-                    case WM_MOUSEMOVE:
-                        Moved?.Invoke(info.pt);
-                        break;
+                    var pt = new POINT(Marshal.ReadInt32(data), Marshal.ReadInt32(data, 4));
+                    switch (msg)
+                    {
+                        case WM_LBUTTONDOWN:
+                            LeftButtonDown?.Invoke(pt);
+                            break;
+                        case WM_LBUTTONUP:
+                            LeftButtonUp?.Invoke(pt);
+                            break;
+                        default:
+                            Moved?.Invoke(pt);
+                            break;
+                    }
                 }
             }
             catch (Exception)
