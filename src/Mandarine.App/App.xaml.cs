@@ -45,6 +45,13 @@ public partial class App : Application, IPanelHost
         var arguments = e.Args.Select(a => a.StartsWith("--", StringComparison.Ordinal) ? a : Path.GetFullPath(a)).ToArray();
         Environment.CurrentDirectory = AppContext.BaseDirectory;
 
+        if (CommandLine.Parse(arguments).Worker)
+        {
+            // A conversion started by the tray app: no window, no hook, no tray, no single-instance check.
+            Shutdown(ConversionWorker.Run());
+            return;
+        }
+
         _instance = new SingleInstance("Mandarine");
         if (!_instance.IsFirstInstance)
         {

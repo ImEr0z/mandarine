@@ -500,7 +500,7 @@ public partial class ConverterPanel : Window
         {
             var context = _host.CreateContext();
             var token = _cancellation.Token;
-            result = await Task.Run(() => item.Action.RunAsync(files, context, progress, token), token);
+            result = await ConversionWorker.RunAsync(item.Action, files, context, progress, token);
         }
         catch (OperationCanceledException)
         {

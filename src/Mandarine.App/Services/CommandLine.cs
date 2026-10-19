@@ -2,14 +2,15 @@ namespace Mandarine.App.Services;
 
 /// <summary>
 /// Mandarine.exe [--background] [--dropzone] [--settings] [files...]
+/// Mandarine.exe --worker runs one conversion for the tray app (see ConversionWorker) and exits.
 /// Files are what Explorer passes from the context menu or "Send to".
 /// </summary>
-internal sealed record CommandLine(IReadOnlyList<string> Files, bool Background, bool DropZone, bool Settings)
+internal sealed record CommandLine(IReadOnlyList<string> Files, bool Background, bool DropZone, bool Settings, bool Worker = false)
 {
     public static CommandLine Parse(IEnumerable<string> arguments)
     {
         var files = new List<string>();
-        bool background = false, dropZone = false, settings = false;
+        bool background = false, dropZone = false, settings = false, worker = false;
         foreach (var argument in arguments)
         {
             switch (argument.ToLowerInvariant())
@@ -23,6 +24,9 @@ internal sealed record CommandLine(IReadOnlyList<string> Files, bool Background,
                 case "--settings":
                     settings = true;
                     break;
+                case ConversionWorker.Argument:
+                    worker = true;
+                    break;
                 default:
                     if (!argument.StartsWith("--", StringComparison.Ordinal) && (File.Exists(argument) || Directory.Exists(argument)))
                     {
@@ -33,6 +37,6 @@ internal sealed record CommandLine(IReadOnlyList<string> Files, bool Background,
             }
         }
 
-        return new CommandLine(files, background, dropZone, settings);
+        return new CommandLine(files, background, dropZone, settings, worker);
     }
 }
