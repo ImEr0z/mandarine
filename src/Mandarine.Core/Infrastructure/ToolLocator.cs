@@ -79,7 +79,12 @@ public sealed class ToolLocator
         foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
                      .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
-            yield return Path.Combine(directory.Trim('"'), executable);
+            // A relative entry (".") would resolve against the current folder, e.g. a downloaded one.
+            var trimmed = directory.Trim('"');
+            if (Path.IsPathFullyQualified(trimmed))
+            {
+                yield return Path.Combine(trimmed, executable);
+            }
         }
     }
 

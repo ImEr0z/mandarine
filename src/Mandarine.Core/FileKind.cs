@@ -66,14 +66,36 @@ public static class FileKinds
     public static string ExtensionOf(string path) =>
         Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
 
+    [ThreadStatic]
+    private static Dictionary<string, FileKind>? _batch;
+
     public static FileKind Detect(string path)
     {
-        if (Directory.Exists(path))
+        if (_batch is not null && _batch.TryGetValue(path, out var cached))
         {
-            return FileKind.Folder;
+            return cached;
         }
 
-        return ByExtension.TryGetValue(ExtensionOf(path), out var kind) ? kind : FileKind.Other;
+        var kind = Directory.Exists(path) ? FileKind.Folder
+            : ByExtension.TryGetValue(ExtensionOf(path), out var known) ? known : FileKind.Other;
+        _batch?.TryAdd(path, kind);
+        return kind;
+    }
+
+    /// <summary>
+    /// While the returned scope is alive, each path hits the disk once on this thread instead of once per
+    /// action asked about it (the catalog checks dozens of actions for every dragged file).
+    /// </summary>
+    public static IDisposable CacheScope()
+    {
+        var outer = _batch;
+        _batch ??= new Dictionary<string, FileKind>(StringComparer.OrdinalIgnoreCase);
+        return new Scope(outer);
+    }
+
+    private sealed class Scope(Dictionary<string, FileKind>? outer) : IDisposable
+    {
+        public void Dispose() => _batch = outer;
     }
 
     public static string Label(FileKind kind) => kind switch

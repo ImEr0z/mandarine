@@ -9,6 +9,37 @@ internal static class LibreOffice
 
     private static string ProfileDirectory => Path.Combine(Path.GetTempPath(), "Mandarine", "libreoffice-profile");
 
+    private const string HardeningMarker = "DisableActiveContent";
+
+    /// <summary>
+    /// Documents to convert come from anywhere: never run their macros, never follow DDE/OLE/external
+    /// links or fetch linked content while loading them. Written into Mandarine's private profile only.
+    /// </summary>
+    private const string HardeningItems = """
+        <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>
+        <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="DisableMacrosExecution" oor:op="fuse"><value>true</value></prop></item>
+        <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="DisableActiveContent" oor:op="fuse"><value>true</value></prop></item>
+        <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
+        """;
+
+    private static void Harden()
+    {
+        var file = Path.Combine(ProfileDirectory, "user", "registrymodifications.xcu");
+        var content = File.Exists(file) ? File.ReadAllText(file) : null;
+        if (content?.Contains(HardeningMarker, StringComparison.Ordinal) == true)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        content = content is not null && content.Contains("</oor:items>", StringComparison.Ordinal)
+            ? content.Replace("</oor:items>", HardeningItems + "</oor:items>", StringComparison.Ordinal)
+            : """<?xml version="1.0" encoding="UTF-8"?>""" + "\n"
+              + """<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">"""
+              + "\n" + HardeningItems + "</oor:items>\n";
+        File.WriteAllText(file, content);
+    }
+
     /// <summary>
     /// Converts <paramref name="input"/> with soffice in headless mode and moves the result to <paramref name="output"/>.
     /// </summary>
@@ -27,6 +58,7 @@ internal static class LibreOffice
         await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            Harden();
             List<string> arguments =
             [
                 "-env:UserInstallation=" + new Uri(ProfileDirectory + Path.DirectorySeparatorChar).AbsoluteUri,
@@ -44,7 +76,7 @@ internal static class LibreOffice
 
             var produced = Directory.EnumerateFiles(workDirectory).FirstOrDefault()
                 ?? throw new ExternalToolException("LibreOffice n'a produit aucun fichier : format non pris en charge ?");
-            File.Move(produced, output);
+            File.Move(produced, output, overwrite: true);
         }
         finally
         {

@@ -52,6 +52,8 @@ internal static class Ffmpeg
         string[] arguments =
         [
             "-hide_banner", "-nostdin", "-y", "-nostats", "-progress", "pipe:1",
+            // A playlist disguised as a video (HLS, concat) could otherwise fetch URLs or pull in other local files.
+            "-protocol_whitelist", "file",
             "-i", input,
             "-sn", "-map_metadata", "0",
             .. outputArguments,

@@ -37,27 +37,42 @@ internal static class DataFormats
         return serializer.Serialize(graph);
     }
 
+    /// <summary>
+    /// YAML aliases point back to earlier nodes; expanding them into JSON copies the target each time,
+    /// so a few lines of nested aliases ("billion laughs") would grow exponentially. Cap the output.
+    /// </summary>
+    private const int MaxYamlNodes = 2_000_000;
+
     public static string YamlToJson(string yaml)
     {
         var stream = new YamlStream();
         stream.Load(new StringReader(yaml));
+        var budget = new int[] { MaxYamlNodes };
         return stream.Documents.Count switch
         {
             0 => ToJson(null),
-            1 => ToJson(YamlToNode(stream.Documents[0].RootNode)),
-            _ => ToJson(new JsonArray(stream.Documents.Select(d => YamlToNode(d.RootNode)).ToArray())),
+            1 => ToJson(YamlToNode(stream.Documents[0].RootNode, budget)),
+            _ => ToJson(new JsonArray(stream.Documents.Select(d => YamlToNode(d.RootNode, budget)).ToArray())),
         };
     }
 
-    private static JsonNode? YamlToNode(YamlNode node) => node switch
+    private static JsonNode? YamlToNode(YamlNode node, int[] budget)
     {
-        YamlMappingNode map => new JsonObject(map.Children.Select(p =>
-            new KeyValuePair<string, JsonNode?>(((p.Key as YamlScalarNode)?.Value) ?? p.Key.ToString(), YamlToNode(p.Value)))),
-        YamlSequenceNode sequence => new JsonArray(sequence.Children.Select(YamlToNode).ToArray()),
-        YamlScalarNode scalar when scalar.Style is ScalarStyle.Plain => PlainScalar(scalar.Value ?? string.Empty),
-        YamlScalarNode scalar => JsonValue.Create(scalar.Value),
-        _ => null,
-    };
+        if (--budget[0] < 0)
+        {
+            throw new InvalidOperationException("Document YAML trop volumineux une fois ses alias développés.");
+        }
+
+        return node switch
+        {
+            YamlMappingNode map => new JsonObject(map.Children.Select(p =>
+                new KeyValuePair<string, JsonNode?>(((p.Key as YamlScalarNode)?.Value) ?? p.Key.ToString(), YamlToNode(p.Value, budget)))),
+            YamlSequenceNode sequence => new JsonArray(sequence.Children.Select(n => YamlToNode(n, budget)).ToArray()),
+            YamlScalarNode scalar when scalar.Style is ScalarStyle.Plain => PlainScalar(scalar.Value ?? string.Empty),
+            YamlScalarNode scalar => JsonValue.Create(scalar.Value),
+            _ => null,
+        };
+    }
 
     /// <summary>YAML 1.2 core schema: unquoted scalars may be null, booleans or numbers.</summary>
     private static JsonNode? PlainScalar(string value)

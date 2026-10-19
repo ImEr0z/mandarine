@@ -16,7 +16,7 @@ public static class OutputPaths
             baseName = $"{baseName} - {suffix}";
         }
 
-        return Unique(directory, baseName, "." + extension.TrimStart('.'));
+        return Unique(directory, baseName, "." + extension.TrimStart('.'), reserve: true);
     }
 
     /// <summary>Returns a free folder path next to <paramref name="input"/>, e.g. "rapport (pages)".</summary>
@@ -24,14 +24,14 @@ public static class OutputPaths
     {
         var directory = DirectoryFor(input, outputDirectory);
         var name = string.IsNullOrEmpty(suffix) ? BaseNameOf(input) : $"{BaseNameOf(input)} ({suffix})";
-        return Unique(directory, name, string.Empty);
+        return Unique(directory, name, string.Empty, reserve: false);
     }
 
     /// <summary>Returns a free path named <paramref name="fileName"/> in the folder of <paramref name="anchor"/>.</summary>
     public static string Named(string anchor, string fileName, string? outputDirectory)
     {
         var directory = DirectoryFor(anchor, outputDirectory);
-        return Unique(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName));
+        return Unique(directory, Path.GetFileNameWithoutExtension(fileName), Path.GetExtension(fileName), reserve: true);
     }
 
     public static string BaseNameOf(string path)
@@ -57,15 +57,35 @@ public static class OutputPaths
             ?? Environment.CurrentDirectory;
     }
 
-    private static string Unique(string directory, string baseName, string extension)
+    /// <summary>
+    /// Files are reserved by creating them empty with CreateNew: two conversions running at once can
+    /// never pick the same name and overwrite each other (a plain "does it exist?" check would race).
+    /// </summary>
+    private static string Unique(string directory, string baseName, string extension, bool reserve)
     {
-        var candidate = Path.Combine(directory, baseName + extension);
-        for (var n = 2; File.Exists(candidate) || Directory.Exists(candidate); n++)
+        for (var n = 1; ; n++)
         {
-            candidate = Path.Combine(directory, $"{baseName} ({n}){extension}");
-        }
+            var candidate = Path.Combine(directory, n == 1 ? baseName + extension : $"{baseName} ({n}){extension}");
+            if (File.Exists(candidate) || Directory.Exists(candidate))
+            {
+                continue;
+            }
 
-        return candidate;
+            if (!reserve)
+            {
+                return candidate;
+            }
+
+            try
+            {
+                new FileStream(candidate, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete).Dispose();
+                return candidate;
+            }
+            catch (IOException) when (File.Exists(candidate))
+            {
+                // Taken between the check and the creation: try the next number.
+            }
+        }
     }
 
     /// <summary>Deletes a partially written output after a failure. Never throws.</summary>

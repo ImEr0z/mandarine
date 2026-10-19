@@ -34,7 +34,7 @@ internal sealed class ZipAction : FileAction
                 : OutputPaths.Named(inputs[0], "Archive.zip", context.OutputDirectory);
             try
             {
-                using var archive = ZipFile.Open(output, ZipArchiveMode.Create);
+                using var archive = new ZipArchive(File.Create(output), ZipArchiveMode.Create);
                 for (var i = 0; i < inputs.Count; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -147,6 +147,7 @@ internal sealed class ExtractAction : PerFileAction
             Directory.CreateDirectory(destination);
             if (name.EndsWith(".zip"))
             {
+                RefuseZipBomb(input, destination);
                 // Rejects entries that would escape the destination folder ("zip slip").
                 ZipFile.ExtractToDirectory(input, destination, overwriteFiles: false);
             }
@@ -168,6 +169,35 @@ internal sealed class ExtractAction : PerFileAction
         }
 
         return destination;
+    }
+
+    /// <summary>
+    /// A few kilobytes of ZIP can declare terabytes of content: check the announced size against the
+    /// free space (and an absurd compression ratio) before writing anything.
+    /// </summary>
+    private static void RefuseZipBomb(string input, string destination)
+    {
+        using var archive = ZipFile.OpenRead(input);
+        long total = 0;
+        foreach (var entry in archive.Entries)
+        {
+            total += entry.Length;
+        }
+
+        var compressed = Math.Max(1, new FileInfo(input).Length);
+        long free;
+        try
+        {
+            free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(destination))!).AvailableFreeSpace;
+        }
+        catch (ArgumentException)
+        {
+            free = long.MaxValue; // Network share: free space unknown, the ratio check still applies.
+        }
+        if (total > free || (total > 1024L * 1024 * 1024 && total / compressed > 200))
+        {
+            throw new InvalidOperationException("Archive refusée : son contenu décompressé serait démesuré (bombe de décompression ?).");
+        }
     }
 
     private static string Gunzip(string input, ActionContext context)

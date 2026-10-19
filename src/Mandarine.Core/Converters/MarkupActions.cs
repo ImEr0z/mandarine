@@ -85,7 +85,7 @@ internal sealed class TextTransformAction(
     protected override async Task<string> ProcessAsync(
         string input, ActionContext context, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        var source = await File.ReadAllTextAsync(input, cancellationToken).ConfigureAwait(false);
+        var source = await TextInput.ReadAsync(input, cancellationToken).ConfigureAwait(false);
         var result = transform(source, input);
         var output = OutputPaths.ForFile(input, extension, context.OutputDirectory);
         await File.WriteAllTextAsync(output, result, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
@@ -113,7 +113,7 @@ internal sealed class MarkdownViaLibreOfficeAction(string extension, string conv
     protected override async Task<string> ProcessAsync(
         string input, ActionContext context, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        var markdown = await File.ReadAllTextAsync(input, cancellationToken).ConfigureAwait(false);
+        var markdown = await TextInput.ReadAsync(input, cancellationToken).ConfigureAwait(false);
         var html = Markup.MarkdownToHtmlDocument(markdown, OutputPaths.BaseNameOf(input));
 
         // Same base name so LibreOffice names its output like the source; same folder so relative images resolve.

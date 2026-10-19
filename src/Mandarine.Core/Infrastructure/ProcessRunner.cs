@@ -58,6 +58,15 @@ public static class ProcessRunner
         };
 
         process.Start();
+        try
+        {
+            // Long video or office conversions must not make the rest of the PC sluggish.
+            process.PriorityClass = ProcessPriorityClass.BelowNormal;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or PlatformNotSupportedException)
+        {
+        }
+
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 

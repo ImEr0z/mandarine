@@ -23,6 +23,18 @@ internal static class ShellIntegration
         SetExplorerIntegration(settings.ExplorerContextMenu);
     }
 
+    /// <summary>Removes every trace Mandarine left in Windows: startup entry, context menu, "Send to", Start menu.</summary>
+    public static void RemoveAll()
+    {
+        SetLaunchAtStartup(false);
+        SetExplorerIntegration(false);
+        var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Mandarine.lnk");
+        if (File.Exists(startMenu))
+        {
+            File.Delete(startMenu);
+        }
+    }
+
     public static void SetLaunchAtStartup(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);

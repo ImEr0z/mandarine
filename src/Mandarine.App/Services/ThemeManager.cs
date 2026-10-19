@@ -3,17 +3,17 @@ using Microsoft.Win32;
 
 namespace Mandarine.App.Services;
 
-/// <summary>Swaps the light/dark brush dictionary to follow the Windows app theme.</summary>
+/// <summary>Swaps the light/dark/contrast brush dictionary to follow the Windows app theme and contrast themes.</summary>
 internal static class ThemeManager
 {
     private const string ThemeFolder = "/Mandarine;component/Themes/";
 
     public static void Apply(Application application)
     {
-        var name = IsDarkMode() ? "Dark.xaml" : "Light.xaml";
+        var name = SystemParameters.HighContrast ? "HighContrast.xaml" : IsDarkMode() ? "Dark.xaml" : "Light.xaml";
         var dictionaries = application.Resources.MergedDictionaries;
         var current = dictionaries.FirstOrDefault(d =>
-            d.Source?.OriginalString.EndsWith("Light.xaml") == true || d.Source?.OriginalString.EndsWith("Dark.xaml") == true);
+            d.Source?.OriginalString is { } source && (source.EndsWith("Light.xaml") || source.EndsWith("Dark.xaml") || source.EndsWith("HighContrast.xaml")));
         if (current?.Source?.OriginalString.EndsWith(name) == true)
         {
             return;

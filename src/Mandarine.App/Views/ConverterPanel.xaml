@@ -141,7 +141,7 @@
 
             <!-- Working -->
             <StackPanel x:Name="WorkingView" Margin="0,14,0,2" Visibility="Collapsed">
-                <TextBlock x:Name="WorkingText" FontWeight="SemiBold" />
+                <TextBlock x:Name="WorkingText" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
                 <TextBlock x:Name="WorkingDetail" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource Text.Secondary}" />
                 <ProgressBar x:Name="WorkingProgress" Height="4" Margin="0,12,0,12" Minimum="0" Maximum="1"
@@ -153,11 +153,11 @@
             <StackPanel x:Name="DoneView" Margin="0,14,0,2" Visibility="Collapsed">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="DoneGlyph" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
-                    <TextBlock x:Name="DoneTitle" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock x:Name="DoneTitle" AutomationProperties.LiveSetting="Polite" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock x:Name="DoneDetail" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource Text.Secondary}" />
-                <TextBlock x:Name="ErrorText" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                <TextBlock x:Name="ErrorText" AutomationProperties.LiveSetting="Assertive" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource Error}" Visibility="Collapsed" />
                 <WrapPanel HorizontalAlignment="Right" Margin="0,14,0,0">
                     <Button x:Name="SecondaryButton" Style="{StaticResource PanelButton}" Click="OnSecondaryClick" />

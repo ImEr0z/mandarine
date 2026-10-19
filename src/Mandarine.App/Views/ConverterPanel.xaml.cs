@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -120,7 +121,8 @@ public partial class ConverterPanel : Window
         var hwnd = new WindowInteropHelper(this).EnsureHandle();
         var width = (int)Math.Round(Width * scale);
         FitHeight(work, scale);
-        if (_dropZonePosition is { } saved)
+        // Only reuse the saved spot if a monitor is still there (screens may have changed since).
+        if (_dropZonePosition is { } saved && MonitorFromPoint(saved, MONITOR_DEFAULTTONULL) != IntPtr.Zero)
         {
             _movedByUser = true;
             SetWindowPos(hwnd, HWND_TOPMOST, saved.X, saved.Y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
@@ -170,7 +172,7 @@ public partial class ConverterPanel : Window
             timer.Stop();
             if (_mode == PanelMode.Gesture && !_dropHandled && _state is State.Armed or State.Actions)
             {
-                Close();
+                CloseOnce();
             }
         };
         timer.Start();
@@ -206,17 +208,39 @@ public partial class ConverterPanel : Window
             : "Cliquez sur une action. Échap pour fermer."));
 
         TitleText.Text = files.Count == 1 ? Path.GetFileName(Path.TrimEndingDirectorySeparator(files[0])) : FileKinds.Describe(files);
-        SubtitleText.Text = files.Count == 1 ? Join(FileKinds.Describe(files), SizeOf(files)) : SizeOf(files);
+        var description = files.Count == 1 ? FileKinds.Describe(files) : null;
+        SubtitleText.Text = description ?? string.Empty;
+        ShowSizeAsync(files, description);
         KindGlyph.Text = GlyphFor(files);
         SetState(State.Actions);
     }
 
     private static string Join(params string?[] parts) => string.Join(" · ", parts.Where(p => !string.IsNullOrEmpty(p)));
 
+    /// <summary>
+    /// Sizes are read off the UI thread: during a drag Explorer waits for us, and a slow or offline
+    /// network share must never freeze it.
+    /// </summary>
+    private async void ShowSizeAsync(IReadOnlyList<string> files, string? description)
+    {
+        var size = await Task.Run(() => SizeOf(files));
+        if (ReferenceEquals(files, _files) && size is not null)
+        {
+            SubtitleText.Text = Join(description, size);
+        }
+    }
+
     private static string? SizeOf(IReadOnlyList<string> files)
     {
-        var paths = files.Where(File.Exists).ToList();
-        return paths.Count == 0 ? null : FormatSize(paths.Sum(p => new FileInfo(p).Length));
+        try
+        {
+            var paths = files.Where(File.Exists).ToList();
+            return paths.Count == 0 ? null : FormatSize(paths.Sum(p => new FileInfo(p).Length));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static string FormatSize(long bytes)
@@ -254,6 +278,19 @@ public partial class ConverterPanel : Window
         WorkingView.Visibility = state == State.Working ? Visibility.Visible : Visibility.Collapsed;
         DoneView.Visibility = state == State.Done ? Visibility.Visible : Visibility.Collapsed;
 
+        // Narrator reads progress and results without the user having to move focus.
+        if (state is State.Working or State.Done)
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                Announce(state == State.Working ? WorkingText : DoneTitle);
+                if (state == State.Done && ErrorText.Visibility == Visibility.Visible)
+                {
+                    Announce(ErrorText);
+                }
+            }, DispatcherPriority.Loaded);
+        }
+
         if (state == State.Hint)
         {
             TitleText.Text = "Mandarine";
@@ -261,6 +298,9 @@ public partial class ConverterPanel : Window
             KindGlyph.Text = "\uE898";
         }
     }
+
+    private static void Announce(UIElement element) =>
+        UIElementAutomationPeer.CreatePeerForElement(element)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
 
     private void Reveal()
     {
@@ -357,7 +397,7 @@ public partial class ConverterPanel : Window
         try
         {
             return data.GetDataPresent(DataFormats.FileDrop) && data.GetData(DataFormats.FileDrop) is string[] paths
-                ? paths.Where(p => File.Exists(p) || Directory.Exists(p)).ToList()
+                ? paths.Where(Path.IsPathFullyQualified).ToList()
                 : [];
         }
         catch (COMException)
@@ -413,14 +453,14 @@ public partial class ConverterPanel : Window
         _dropHandled = true;
 
         // Return immediately: Explorer is blocked until the drop handler returns.
-        Dispatcher.BeginInvoke(() => _ = RunAsync(item, files));
+        Dispatcher.BeginInvoke(() => ErrorLog.Forget(RunAsync(item, files)));
     }
 
     private void OnTileClick(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is { } item && _state == State.Actions && _files.Count > 0)
         {
-            _ = RunAsync(item, _files);
+            ErrorLog.Forget(RunAsync(item, _files));
         }
     }
 
@@ -610,15 +650,17 @@ public partial class ConverterPanel : Window
         switch (command)
         {
             case DoneCommand.Open when _outputs.Count > 0:
-                Process.Start(new ProcessStartInfo(_outputs[0]) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(_outputs[0]) { UseShellExecute = true })?.Dispose();
                 CloseOrReset();
                 break;
             case DoneCommand.Reveal when _outputs.Count > 0:
-                Process.Start("explorer.exe", $"/select,\"{_outputs[0]}\"");
+                // Full path: a plain "explorer.exe" would be searched in the current folder first.
+                Process.Start(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                    $"/select,\"{_outputs[0]}\"").Dispose();
                 CloseOrReset();
                 break;
             case DoneCommand.Install:
-                _ = InstallAndRetryAsync();
+                ErrorLog.Forget(InstallAndRetryAsync());
                 break;
             case DoneCommand.Settings:
                 CloseOrReset();
@@ -651,14 +693,14 @@ public partial class ConverterPanel : Window
         }
         else
         {
-            Close();
+            CloseOnce();
         }
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e)
     {
         _cancellation?.Cancel();
-        Close();
+        CloseOnce();
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => _cancellation?.Cancel();
@@ -667,7 +709,7 @@ public partial class ConverterPanel : Window
     {
         if (_state != State.Working && _mode != PanelMode.DropZone)
         {
-            Close();
+            CloseOnce();
         }
 
         Dispatcher.BeginInvoke(_host.OpenSettings);
@@ -687,7 +729,7 @@ public partial class ConverterPanel : Window
         }
         else
         {
-            Close();
+            CloseOnce();
         }
 
         e.Handled = true;
@@ -698,8 +740,26 @@ public partial class ConverterPanel : Window
         base.OnDeactivated(e);
         if (_mode == PanelMode.Picker && _state == State.Actions)
         {
+            CloseOnce();
+        }
+    }
+
+    private bool _closing;
+
+    /// <summary>Several paths can close the panel at once (Close button, then focus loss): close only once.</summary>
+    private void CloseOnce()
+    {
+        if (!_closing)
+        {
+            _closing = true;
             Close();
         }
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        _closing = true;
+        base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)

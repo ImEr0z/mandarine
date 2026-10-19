@@ -25,10 +25,16 @@ public sealed class ActionCatalog
     public IReadOnlyList<FileAction> All { get; }
 
     /// <summary>Actions applicable to the whole selection: conversions first, then tools.</summary>
-    public IReadOnlyList<FileAction> For(IReadOnlyList<string> inputs) =>
-        inputs.Count == 0
-            ? []
-            : All.Where(a => a.IsAvailableFor(inputs)).OrderBy(a => a.Group).ToList();
+    public IReadOnlyList<FileAction> For(IReadOnlyList<string> inputs)
+    {
+        if (inputs.Count == 0)
+        {
+            return [];
+        }
+
+        using var _ = FileKinds.CacheScope();
+        return All.Where(a => a.IsAvailableFor(inputs)).OrderBy(a => a.Group).ToList();
+    }
 
     public FileAction? Find(string id) => All.FirstOrDefault(a => a.Id == id);
 

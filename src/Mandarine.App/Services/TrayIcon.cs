@@ -19,6 +19,7 @@ internal sealed class TrayIcon : IDisposable
         _pauseItem.CheckedChanged += (_, _) => PauseChanged?.Invoke(_pauseItem.Checked);
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add("Désinstaller Mandarine…", null, (_, _) => UninstallRequested?.Invoke());
         menu.Items.Add("Quitter Mandarine", null, (_, _) => ExitRequested?.Invoke());
 
         using var stream = System.Windows.Application.GetResourceStream(
@@ -47,6 +48,8 @@ internal sealed class TrayIcon : IDisposable
 
     public event Action? ExitRequested;
 
+    public event Action? UninstallRequested;
+
     public void SetPaused(bool paused) => _pauseItem.Checked = paused;
 
     public void Notify(string title, string text) => _icon.ShowBalloonTip(6000, title, text, Forms.ToolTipIcon.None);
@@ -55,6 +58,7 @@ internal sealed class TrayIcon : IDisposable
     {
         _icon.Visible = false;
         _icon.ContextMenuStrip?.Dispose();
+        _icon.Icon?.Dispose();
         _icon.Dispose();
     }
 }

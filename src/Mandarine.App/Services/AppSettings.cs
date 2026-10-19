@@ -78,15 +78,28 @@ public sealed class SettingsStore
         {
             if (File.Exists(FilePath))
             {
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Options) ?? new AppSettings();
+                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Options) ?? new AppSettings();
+                settings.Quality = Math.Clamp(settings.Quality, 1, 100);
+                if (!Enum.IsDefined(settings.Trigger))
+                {
+                    settings.Trigger = TriggerMode.Shift;
+                }
+
+                return settings;
             }
         }
         catch (JsonException)
         {
             // Keep the unreadable file for inspection and start again from the defaults.
-            File.Copy(FilePath, FilePath + ".bak", overwrite: true);
+            try
+            {
+                File.Copy(FilePath, FilePath + ".bak", overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
         }
 
@@ -97,7 +110,12 @@ public sealed class SettingsStore
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         var temporary = FilePath + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(settings, Options));
+        using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            JsonSerializer.Serialize(stream, settings, Options);
+            stream.Flush(flushToDisk: true); // survive a power cut between the write and the rename
+        }
+
         File.Move(temporary, FilePath, overwrite: true);
     }
 }

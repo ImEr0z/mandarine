@@ -10,6 +10,8 @@ namespace Mandarine.App.Services;
 /// </summary>
 internal sealed class SingleInstance : IDisposable
 {
+    private const int MaxPayload = 4 * 1024 * 1024;
+
     private readonly Mutex _mutex;
     private readonly string _pipeName;
     private CancellationTokenSource? _listening;
@@ -43,17 +45,31 @@ internal sealed class SingleInstance : IDisposable
                 await using var server = new NamedPipeServerStream(_pipeName, PipeDirection.In, 1,
                     PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                 await server.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
-                using var reader = new StreamReader(server);
-                var payload = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-                ArgumentsReceived?.Invoke(JsonSerializer.Deserialize<string[]>(payload) ?? []);
+                // Explorer forwards at most a few thousand paths: anything bigger is not a real launch.
+                var buffer = new byte[MaxPayload + 1];
+                var length = 0;
+                int read;
+                while ((read = await server.ReadAsync(buffer.AsMemory(length), cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    length += read;
+                    if (length > MaxPayload)
+                    {
+                        throw new InvalidDataException("Message trop long.");
+                    }
+                }
+
+                ArgumentsReceived?.Invoke(JsonSerializer.Deserialize<string[]>(buffer.AsSpan(0, length)) ?? []);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
-            catch (Exception ex) when (ex is IOException or JsonException)
+            catch (Exception ex)
             {
-                // A client that disconnects early or sends garbage must not stop the listener.
+                // A client that disconnects early or sends garbage must never stop the listener:
+                // without it, every later right-click would be lost.
+                ErrorLog.Write(ex);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false); // never spin on a persistent failure
             }
         }
     }

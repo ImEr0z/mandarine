@@ -21,6 +21,9 @@ internal static class ImageFormats
 
     private static readonly HashSet<string> Animated = ["gif", "webp"];
 
+    // Every ImageMagick read and write goes through this class: lock the library down before the first one.
+    static ImageFormats() => MagickSecurity.EnsureApplied();
+
     private static readonly HashSet<string> Lossy = ["jpg", "webp", "avif", "jxl"];
 
     public static bool IsImage(string path) => FileKinds.Detect(path) == FileKind.Image;

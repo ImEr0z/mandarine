@@ -38,17 +38,37 @@ public partial class App : Application, IPanelHost
     {
         base.OnStartup(e);
 
+        // Explorer starts the context menu verb in the folder of the clicked file (often Downloads):
+        // never load a DLL or run a program from there. Relative arguments are resolved first.
+        NativeMethods.SetDefaultDllDirectories(NativeMethods.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        NativeMethods.SetDllDirectory(string.Empty);
+        var arguments = e.Args.Select(a => a.StartsWith("--", StringComparison.Ordinal) ? a : Path.GetFullPath(a)).ToArray();
+        Environment.CurrentDirectory = AppContext.BaseDirectory;
+
         _instance = new SingleInstance("Mandarine");
         if (!_instance.IsFirstInstance)
         {
             // Let the running instance bring its panel to the foreground.
             NativeMethods.AllowSetForegroundWindow(NativeMethods.ASFW_ANY);
-            _instance.TrySendToFirstInstance(e.Args);
+            if (!_instance.TrySendToFirstInstance(arguments))
+            {
+                MessageBox.Show("Mandarine est déjà lancé mais ne répond pas. Quittez-le depuis la zone de notification, puis réessayez.",
+                    "Mandarine", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
             Shutdown();
             return;
         }
 
         DispatcherUnhandledException += OnUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += (_, args) => ErrorLog.Write(args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            ErrorLog.Write(args.Exception);
+            args.SetObserved();
+        };
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
         _settings = _store.Load();
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
@@ -60,6 +80,7 @@ public partial class App : Application, IPanelHost
         _tray.SettingsRequested += OpenSettings;
         _tray.PauseChanged += SetPaused;
         _tray.ExitRequested += () => Shutdown();
+        _tray.UninstallRequested += Uninstall;
 
         _detector = new DragGestureDetector();
         _detector.Triggered += point => Dispatcher.BeginInvoke(() => OnGestureTriggered(point));
@@ -73,7 +94,7 @@ public partial class App : Application, IPanelHost
         _instance.ArgumentsReceived += args => Dispatcher.BeginInvoke(() => HandleCommandLine(CommandLine.Parse(args)));
         _instance.Listen();
 
-        var commandLine = CommandLine.Parse(e.Args);
+        var commandLine = CommandLine.Parse(arguments);
         if (!_settings.FirstRunDone)
         {
             CompleteFirstRun();
@@ -307,6 +328,8 @@ public partial class App : Application, IPanelHost
     private T Track<T>(T window)
         where T : Window
     {
+        // Full speed while a window is up (conversions), efficiency mode once Mandarine is waiting again.
+        NativeMethods.SetEfficiencyMode(false);
         window.Closed += (_, _) => ScheduleIdleRelief();
         return window;
     }
@@ -328,6 +351,7 @@ public partial class App : Application, IPanelHost
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
                 GC.WaitForPendingFinalizers();
                 NativeMethods.SetProcessWorkingSetSize(NativeMethods.GetCurrentProcess(), -1, -1);
+                NativeMethods.SetEfficiencyMode(true);
             };
         }
 
@@ -339,7 +363,7 @@ public partial class App : Application, IPanelHost
 
     private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
-        if (e.Category == UserPreferenceCategory.General)
+        if (e.Category is UserPreferenceCategory.General or UserPreferenceCategory.Accessibility or UserPreferenceCategory.Color)
         {
             Dispatcher.BeginInvoke(() => ThemeManager.Apply(this));
         }
@@ -348,23 +372,92 @@ public partial class App : Application, IPanelHost
     private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // A background utility must survive a bug in one conversion: log, notify, keep running.
-        try
-        {
-            var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mandarine");
-            Directory.CreateDirectory(folder);
-            File.AppendAllText(Path.Combine(folder, "errors.log"), $"[{DateTime.Now:O}] {e.Exception}{Environment.NewLine}");
-        }
-        catch (IOException)
-        {
-        }
-
+        ErrorLog.Write(e.Exception);
         _tray?.Notify("Mandarine a rencontré une erreur", e.Exception.Message);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Windows silently drops a low-level hook that once answered too slowly (e.g. pages swapped out
+    /// during sleep). Reinstall it whenever the session comes back so the gesture keeps working.
+    /// </summary>
+    private void RestartHook()
+    {
+        if (_hook is null || _settings.Paused || _settings.Trigger == TriggerMode.Disabled)
+        {
+            return;
+        }
+
+        _hook.Stop();
+        ApplyGestureSettings();
+    }
+
+    private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason is SessionSwitchReason.SessionUnlock or SessionSwitchReason.SessionLogon or SessionSwitchReason.ConsoleConnect
+            or SessionSwitchReason.RemoteConnect)
+        {
+            Dispatcher.BeginInvoke(RestartHook);
+        }
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume)
+        {
+            Dispatcher.BeginInvoke(RestartHook);
+        }
+    }
+
+    // ---- Uninstall ----
+
+    private void Uninstall()
+    {
+        var answer = MessageBox.Show(
+            "Retirer Mandarine de Windows ?\n\nLe clic droit, « Envoyer vers », le lancement au démarrage, le raccourci du menu Démarrer "
+            + "et les paramètres seront supprimés. Il ne restera que Mandarine.exe, à supprimer vous-même.",
+            "Désinstaller Mandarine", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            ShellIntegration.RemoveAll();
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write(ex);
+        }
+
+        _hook?.Dispose();
+        _hook = null;
+        foreach (var folder in new[]
+                 {
+                     Path.GetDirectoryName(_store.FilePath)!,
+                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mandarine"),
+                     Path.Combine(Path.GetTempPath(), "Mandarine"),
+                 })
+        {
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        // Do not write settings back on exit: there is nothing left to save to.
+        Shutdown();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _hook?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();

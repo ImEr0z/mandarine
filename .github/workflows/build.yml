@@ -7,44 +7,89 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only by default; only the release job may write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      # Third-party code runs with the repository token: actions are pinned to a commit, not a movable tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
         run: dotnet restore
 
+      - name: Vulnerable packages
+        shell: pwsh
+        run: |
+          $report = dotnet list package --vulnerable --include-transitive 2>&1 | Out-String
+          Write-Output $report
+          if ($report -match 'has the following vulnerable packages') { throw 'Vulnerable NuGet package detected.' }
+
       - name: Test
         run: dotnet test tests/Mandarine.Core.Tests -c Release --no-restore
 
       - name: Publish (x64 and ARM64, single self-contained exe)
         shell: pwsh
+        env:
+          # Optional Authenticode certificate (base64 PFX). Without it the exe is published unsigned.
+          SIGNING_CERT_PFX_BASE64: ${{ secrets.SIGNING_CERT_PFX_BASE64 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
         run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          $pfx = $null
+          if ($env:SIGNING_CERT_PFX_BASE64 -and $signtool) {
+            $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_CERT_PFX_BASE64))
+          }
           foreach ($rid in 'win-x64', 'win-arm64') {
             dotnet publish src/Mandarine.App -c Release -r $rid --self-contained true `
               -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
               -p:DebugType=none -o "out/$rid"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($pfx) {
+              & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+                /f $pfx /p $env:SIGNING_CERT_PASSWORD "out/$rid/Mandarine.exe"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
             Compress-Archive -Path "out/$rid/Mandarine.exe" -DestinationPath "out/Mandarine-$rid.zip"
           }
+          if ($pfx) { Remove-Item $pfx -Force }
+          Get-ChildItem out/*.zip | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Set-Content out/SHA256SUMS.txt -Encoding ascii
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Mandarine-windows
-          path: out/*.zip
+          path: |
+            out/*.zip
+            out/SHA256SUMS.txt
 
-      - name: GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
-          files: out/*.zip
+          name: Mandarine-windows
+          path: out
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          files: |
+            out/*.zip
+            out/SHA256SUMS.txt
           generate_release_notes: true
