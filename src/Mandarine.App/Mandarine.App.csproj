@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is only used for the notification area icon. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>Mandarine.App</RootNamespace>
+    <AssemblyName>Mandarine</AssemblyName>
+    <ApplicationIcon>Assets\mandarine.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WPF0001: ThemeMode is experimental. WFO0003: DPI awareness belongs in the manifest for a WPF app. -->
+    <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Keep WinForms and GDI+ types out of the global namespace: they clash with WPF (Application, Button...). -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- Not implicit for WPF (System.Windows.Shapes.Path), but this app never uses shapes from code. -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\mandarine.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mandarine.Core\Mandarine.Core.csproj" />
+  </ItemGroup>
+
+</Project>

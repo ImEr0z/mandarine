@@ -1,0 +1,17 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="Panel.Background" Color="#FFF9F9FA" />
+    <SolidColorBrush x:Key="Panel.Border" Color="#1F000000" />
+    <SolidColorBrush x:Key="Text.Primary" Color="#FF1B1B1F" />
+    <SolidColorBrush x:Key="Text.Secondary" Color="#FF5D5F66" />
+    <SolidColorBrush x:Key="Tile.Background" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Tile.Border" Color="#17000000" />
+    <SolidColorBrush x:Key="Tile.Hover" Color="#FFF3F3F5" />
+    <SolidColorBrush x:Key="Tile.Pressed" Color="#FFEAEAEE" />
+    <SolidColorBrush x:Key="Accent" Color="#FFE0700A" />
+    <SolidColorBrush x:Key="Accent.Soft" Color="#FFFFEBD6" />
+    <SolidColorBrush x:Key="Accent.Strong" Color="#FFA94F00" />
+    <SolidColorBrush x:Key="Focus" Color="#FF1B1B1F" />
+    <SolidColorBrush x:Key="Success" Color="#FF0F7B0F" />
+    <SolidColorBrush x:Key="Error" Color="#FFC42B1C" />
+</ResourceDictionary>
