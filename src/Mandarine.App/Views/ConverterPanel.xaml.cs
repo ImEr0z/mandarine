@@ -48,6 +48,10 @@ public partial class ConverterPanel : Window
     private ExternalTool _missingTool;
     private DoneCommand _primaryCommand;
     private DoneCommand _secondaryCommand;
+    private bool _movedByUser;
+
+    /// <summary>Where the user last left the drop zone, so reopening it does not snap back to the corner.</summary>
+    private static POINT? _dropZonePosition;
 
     internal ConverterPanel(IPanelHost host, PanelMode mode)
     {
@@ -116,9 +120,37 @@ public partial class ConverterPanel : Window
         var hwnd = new WindowInteropHelper(this).EnsureHandle();
         var width = (int)Math.Round(Width * scale);
         FitHeight(work, scale);
-        SetWindowPos(hwnd, HWND_TOPMOST, work.Right - width, work.Bottom - (int)(260 * scale), 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+        if (_dropZonePosition is { } saved)
+        {
+            _movedByUser = true;
+            SetWindowPos(hwnd, HWND_TOPMOST, saved.X, saved.Y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        else
+        {
+            SetWindowPos(hwnd, HWND_TOPMOST, work.Right - width, work.Bottom - (int)(260 * scale), 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+
         Show();
         Activate();
+    }
+
+    /// <summary>The panel has no title bar: it is moved by grabbing anywhere outside its buttons.</summary>
+    private void OnCardMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        DragMove();
+        _movedByUser = true;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (_mode == PanelMode.DropZone && GetWindowRect(hwnd, out var rect))
+        {
+            _dropZonePosition = new POINT(rect.Left, rect.Top);
+        }
+
+        KeepOnScreen();
     }
 
     internal bool IsDropZone => _mode == PanelMode.DropZone;
@@ -709,7 +741,7 @@ public partial class ConverterPanel : Window
 
         var (work, _) = ScreenGeometry.MonitorAt(new POINT((rect.Left + rect.Right) / 2, rect.Top));
         var dx = 0;
-        var dy = _mode == PanelMode.DropZone ? work.Bottom - rect.Bottom : 0;
+        var dy = _mode == PanelMode.DropZone && !_movedByUser ? work.Bottom - rect.Bottom : 0;
         if (rect.Bottom + dy > work.Bottom)
         {
             dy = work.Bottom - rect.Bottom;

@@ -65,6 +65,7 @@
 
     <!-- 12 px transparent margin leaves room for the shadow. -->
     <Border x:Name="Card" Margin="12" Padding="12" CornerRadius="10" BorderThickness="1"
+            MouseLeftButtonDown="OnCardMouseLeftButtonDown"
             Background="{DynamicResource Panel.Background}" BorderBrush="{DynamicResource Panel.Border}">
         <Border.Effect>
             <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Opacity="0.28" Color="Black" />
