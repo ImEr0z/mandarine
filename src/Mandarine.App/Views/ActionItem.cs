@@ -26,9 +26,9 @@ public sealed class ActionItem(FileAction action, bool needsInstall) : INotifyPr
     {
         get
         {
-            var label = Action.Group == ActionGroup.Convert
-                ? $"Convertir en {Action.Title}" + (Action.Subtitle is { } s ? $" ({s})" : string.Empty)
-                : Action.Title;
+            var label = Action.Group != ActionGroup.Convert ? Action.Title
+                : Action.TargetExtension is null && Action.Subtitle is { } target ? $"{Action.Title} en {target}" // "Fusionner en PDF"
+                : $"Convertir en {Action.Title}" + (Action.Subtitle is { } s ? $" ({s})" : string.Empty);
             return NeedsInstall ? $"{label}. Nécessite {ToolLocator.DisplayName(Action.Requires)}." : label;
         }
     }

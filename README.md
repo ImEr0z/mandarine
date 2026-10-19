@@ -23,14 +23,15 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
-| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64, Combiner en PDF |
-| PDF | PNG, JPG (une image par page), TXT | Fusionner, Une page par fichier, Pivoter les pages |
+| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64 |
+| PDF | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter les pages |
 | Markdown | HTML | |
 | HTML | Markdown | |
 | JSON | YAML, CSV, XML | |
 | YAML, XML | JSON | |
 | CSV, TSV | JSON, CSV ↔ TSV | |
 | Archive ZIP, TAR, TAR.GZ, GZ, 7Z, RAR | | Extraire |
+| Plusieurs images et/ou PDF | Fusionner en PDF (premier secteur de la roue, fichiers dans l'ordre de leur nom) | |
 | Image ou PDF (fonctions de Windows) | | Extraire le texte (OCR), Copier le texte, Copier l'image, Fond d'écran, Imprimer |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
 

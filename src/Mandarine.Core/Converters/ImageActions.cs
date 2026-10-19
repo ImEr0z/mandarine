@@ -261,60 +261,6 @@ internal sealed class ImageToolAction(
     }
 }
 
-/// <summary>Combines several images into a multi-page PDF, one image per page.</summary>
-internal sealed class ImagesToPdfAction : FileAction
-{
-    public override string Id => "image.combine.pdf";
-
-    public override string Title => "Combiner en PDF";
-
-    public override string Glyph => "\uE8A5";
-
-    public override ActionGroup Group => ActionGroup.Tools;
-
-    public override int MinInputs => 2;
-
-    public override bool Accepts(string path) => ImageFormats.IsImage(path);
-
-    public override Task<ActionResult> RunAsync(
-        IReadOnlyList<string> inputs,
-        ActionContext context,
-        IProgress<ActionProgress>? progress,
-        CancellationToken cancellationToken) =>
-        Task.Run(() =>
-        {
-            var output = OutputPaths.ForFile(inputs[0], "pdf", context.OutputDirectory, "images");
-            try
-            {
-                using var pages = new MagickImageCollection();
-                for (var i = 0; i < inputs.Count; i++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    progress?.Report(new ActionProgress(i, inputs.Count, inputs[i], null));
-                    var image = ImageFormats.ReadFirstFrame(inputs[i]);
-                    ImageFormats.FlattenIfOpaqueTarget(image, "jpg");
-
-                    // Fit the longest side on an A4 page (11.69 in) instead of 1 px = 1/72 in.
-                    var dpi = Math.Max(72, Math.Max(image.Width, image.Height) / 11.69);
-                    image.Density = new Density(dpi);
-                    image.Quality = (uint)Math.Clamp(context.Quality, 1, 100);
-                    image.Settings.Compression = CompressionMethod.JPEG;
-                    pages.Add(image);
-                }
-
-                pages.Write(output, MagickFormat.Pdf);
-            }
-            catch
-            {
-                OutputPaths.Discard(output);
-                throw;
-            }
-
-            progress?.Report(new ActionProgress(inputs.Count, inputs.Count, null, null));
-            return new ActionResult([output], []);
-        }, cancellationToken);
-}
-
 /// <summary>Copies a small image as a data URI, handy for CSS, HTML or Markdown.</summary>
 internal sealed class ImageDataUriAction : FileAction
 {

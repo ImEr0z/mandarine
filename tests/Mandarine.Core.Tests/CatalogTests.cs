@@ -25,7 +25,7 @@ public class CatalogTests : IDisposable
         Assert.Contains("image.resize.half", ids);
         Assert.Contains("image.datauri", ids);
         Assert.DoesNotContain("image.to.png", ids);
-        Assert.DoesNotContain("image.combine.pdf", ids);
+        Assert.DoesNotContain("pdf.merge", ids);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class CatalogTests : IDisposable
     public void Several_images_can_be_combined_into_a_pdf()
     {
         var ids = Ids(_dir.CreateImage("a.png"), _dir.CreateImage("b.png"));
-        Assert.Contains("image.combine.pdf", ids);
+        Assert.Contains("pdf.merge", ids);
         Assert.DoesNotContain("image.datauri", ids);
     }
 

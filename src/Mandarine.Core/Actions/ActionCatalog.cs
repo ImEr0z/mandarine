@@ -49,6 +49,9 @@ public sealed class ActionCatalog
 
     private static IEnumerable<FileAction> BuildDefault()
     {
+        // First: with several files selected, merging is what people want most.
+        yield return new PdfMergeAction();
+
         foreach (var ext in ImageTargets)
         {
             yield return new ImageConvertAction(ext);
@@ -67,9 +70,7 @@ public sealed class ActionCatalog
             yield return action;
         }
 
-        yield return new ImagesToPdfAction();
         yield return new ImageDataUriAction();
-        yield return new PdfMergeAction();
         yield return new PdfSplitAction();
         yield return new PdfRotateAction();
         yield return new ExtractAction();

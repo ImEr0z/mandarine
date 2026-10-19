@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Mandarine.Core.Actions;
 using PdfSharp.Pdf;
@@ -117,19 +118,26 @@ internal sealed class PdfToTextAction : PerFileAction
         }, cancellationToken);
 }
 
+/// <summary>
+/// Merges two or more images and/or PDFs into one PDF: each image becomes a page, PDF pages are kept as is.
+/// Files are taken in natural name order ("page 2" before "page 10"), whatever order Explorer passed them in.
+/// </summary>
 internal sealed class PdfMergeAction : FileAction
 {
     public override string Id => "pdf.merge";
 
     public override string Title => "Fusionner";
 
-    public override string Glyph => "\uE8F4";
+    public override string Subtitle => "PDF";
 
-    public override ActionGroup Group => ActionGroup.Tools;
+    public override string Glyph => "";
+
+    // A conversion, so that it is the first slice of the wheel when several files are selected.
+    public override ActionGroup Group => ActionGroup.Convert;
 
     public override int MinInputs => 2;
 
-    public override bool Accepts(string path) => Pdf.IsPdf(path);
+    public override bool Accepts(string path) => Pdf.IsPdf(path) || ImageFormats.IsImage(path);
 
     public override Task<ActionResult> RunAsync(
         IReadOnlyList<string> inputs,
@@ -138,16 +146,36 @@ internal sealed class PdfMergeAction : FileAction
         CancellationToken cancellationToken) =>
         Task.Run(() =>
         {
-            var output = OutputPaths.ForFile(inputs[0], "pdf", context.OutputDirectory, "fusionné");
+            var ordered = inputs
+                .Order(Comparer<string>.Create((a, b) => string.Compare(Path.GetFileName(a), Path.GetFileName(b),
+                    CultureInfo.CurrentCulture, CompareOptions.NumericOrdering | CompareOptions.IgnoreCase)))
+                .ToList();
+            var output = OutputPaths.ForFile(ordered[0], "pdf", context.OutputDirectory, "fusionné");
+            var scratch = Directory.CreateTempSubdirectory("mandarine-merge-").FullName;
             try
             {
                 using var merged = new PdfDocument();
-                for (var i = 0; i < inputs.Count; i++)
+                for (var i = 0; i < ordered.Count; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    progress?.Report(new ActionProgress(i, inputs.Count, inputs[i], null));
-                    using var source = PdfReader.Open(inputs[i], PdfDocumentOpenMode.Import);
-                    foreach (var page in source.Pages)
+                    progress?.Report(new ActionProgress(i, ordered.Count, ordered[i], null));
+                    var source = ordered[i];
+                    if (!Pdf.IsPdf(source))
+                    {
+                        // One A4-sized page per image, through the same path as "Convertir en PDF".
+                        var page = Path.Combine(scratch, $"{i}.pdf");
+                        using (var image = ImageFormats.ReadFirstFrame(source))
+                        {
+                            image.Quality = (uint)Math.Clamp(context.Quality, 1, 100);
+                            ImageFormats.FlattenIfOpaqueTarget(image, "pdf");
+                            ImageFormats.Write(image, page, "pdf");
+                        }
+
+                        source = page;
+                    }
+
+                    using var document = PdfReader.Open(source, PdfDocumentOpenMode.Import);
+                    foreach (var page in document.Pages)
                     {
                         merged.AddPage(page);
                     }
@@ -160,8 +188,18 @@ internal sealed class PdfMergeAction : FileAction
                 OutputPaths.Discard(output);
                 throw;
             }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(scratch, recursive: true);
+                }
+                catch (IOException)
+                {
+                }
+            }
 
-            progress?.Report(new ActionProgress(inputs.Count, inputs.Count, null, null));
+            progress?.Report(new ActionProgress(ordered.Count, ordered.Count, null, null));
             return new ActionResult([output], []);
         }, cancellationToken);
 }

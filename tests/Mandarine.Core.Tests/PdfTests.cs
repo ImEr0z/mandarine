@@ -24,6 +24,22 @@ public class PdfTests : IDisposable
     }
 
     [Fact]
+    public async Task Images_and_pdfs_merge_together_in_natural_name_order()
+    {
+        var page10 = _dir.CreateTextPdf("page 10.pdf", "Dix");
+        var page2 = _dir.CreateImage("page 2.png");
+        var page1 = _dir.CreateTextPdf("page 1.pdf", "Un");
+
+        // Explorer may pass the selection in any order.
+        var merged = (await _dir.RunAsync("pdf.merge", page10, page2, page1)).OutputFiles[0];
+
+        Assert.Equal(_dir.File("page 1 - fusionné.pdf"), merged);
+        Assert.Equal(3, PageCount(merged));
+        var text = await File.ReadAllTextAsync((await _dir.RunAsync("pdf.to.txt", merged)).OutputFiles[0]);
+        Assert.True(text.IndexOf("Un") < text.IndexOf("Dix"));
+    }
+
+    [Fact]
     public async Task Split_creates_one_file_per_page_in_a_folder()
     {
         var folder = (await _dir.RunAsync("pdf.split", _dir.CreateTextPdf("doc.pdf", "Un", "Deux", "Trois"))).OutputFiles[0];

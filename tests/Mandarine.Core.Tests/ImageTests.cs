@@ -141,7 +141,7 @@ public class ImageTests : IDisposable
     [Fact]
     public async Task Images_combine_into_one_pdf_page_each()
     {
-        var result = await _dir.RunAsync("image.combine.pdf", _dir.CreateImage("a.png"), _dir.CreateImage("b.png"));
+        var result = await _dir.RunAsync("pdf.merge", _dir.CreateImage("a.png"), _dir.CreateImage("b.png"));
 
         var pdf = Assert.Single(result.OutputFiles);
         Assert.Equal(2, PDFtoImage.Conversion.GetPageCount(File.ReadAllBytes(pdf)));
