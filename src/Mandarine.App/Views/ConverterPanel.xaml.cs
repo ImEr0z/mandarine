@@ -222,19 +222,12 @@ public partial class ConverterPanel : Window
         KindGlyph.Text = GlyphFor(files);
         _items = items;
         _sizeText = null;
-        _wheelPage = conversions.Count > 0 ? WheelPage.Convert : WheelPage.Tools;
-        _listForced = false;
+        BuildPages();
         BuildWheel();
         SetState(State.Actions);
     }
 
     // ---- Wheel ----
-
-    private enum WheelPage
-    {
-        Convert,
-        Tools,
-    }
 
     private const int WheelSlots = 8;
     private const double WheelSize = 340;
@@ -242,73 +235,72 @@ public partial class ConverterPanel : Window
     private const double WheelOuter = 166;
 
     private List<ActionItem> _items = [];
-    private WheelPage _wheelPage;
-    private bool _listForced;
+    private List<List<ActionItem>> _pages = [];
+    private int _page;
+    private bool _shiftDown;
     private string? _sizeText;
 
-    /// <summary>The wheel unless the user prefers the list, or asked for "Plus…" (more actions than slices).</summary>
-    private bool UseWheel => _host.UseWheel && !_listForced;
+    private bool UseWheel => _host.UseWheel;
 
-    private List<ActionItem> PageItems(WheelPage page) =>
-        _items.Where(i => (i.Action.Group == ActionGroup.Convert) == (page == WheelPage.Convert)).ToList();
+    /// <summary>
+    /// Every action is on the wheel, eight per page: conversions first, then tools. Pages are flipped
+    /// with Shift (also mid-drag: release and press it again) or by clicking the center.
+    /// </summary>
+    private void BuildPages()
+    {
+        _pages = [];
+        foreach (var group in new[] { ActionGroup.Convert, ActionGroup.Tools })
+        {
+            var items = _items.Where(i => i.Action.Group == group).ToList();
+            for (var i = 0; i < items.Count; i += WheelSlots)
+            {
+                _pages.Add(items.Skip(i).Take(WheelSlots).ToList());
+            }
+        }
+
+        _page = 0;
+    }
+
+    private void NextPage()
+    {
+        if (_pages.Count < 2 || _state != State.Actions)
+        {
+            return;
+        }
+
+        _page = (_page + 1) % _pages.Count;
+        UiSounds.PlayTick();
+        BuildWheel();
+    }
 
     private void BuildWheel()
     {
         WheelCanvas.Children.Clear();
-        if (!_host.UseWheel)
+        if (!UseWheel || _pages.Count == 0)
         {
             return;
         }
 
-        var items = PageItems(_wheelPage);
-        var overflow = items.Count > WheelSlots;
-        var shown = overflow ? items.Take(WheelSlots - 1).ToList() : items;
-        var count = shown.Count + (overflow ? 1 : 0);
-        if (count == 0)
-        {
-            return;
-        }
-
-        var sweep = 360.0 / count;
+        var shown = _pages[_page];
+        var sweep = 360.0 / shown.Count;
         var center = new Point(WheelSize / 2, WheelSize / 2);
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < shown.Count; i++)
         {
-            var start = -90 - sweep / 2 + i * sweep;
-            WheelSegment segment;
-            if (i < shown.Count)
+            var item = shown[i];
+            var segment = new WheelSegment(center, WheelInner, WheelOuter, -90 - sweep / 2 + i * sweep, sweep,
+                item.Action.Group == ActionGroup.Convert ? null : item.Glyph, item.Title, item.NeedsInstall)
             {
-                var item = shown[i];
-                segment = new WheelSegment(center, WheelInner, WheelOuter, start, sweep,
-                    item.Action.Group == ActionGroup.Convert ? null : item.Glyph, item.Title, item.NeedsInstall)
-                {
-                    DataContext = item,
-                    ToolTip = item.Description,
-                };
-                AutomationProperties.SetName(segment, $"{i + 1}. {item.Description}");
-                segment.SetBinding(WheelSegment.IsHotProperty, new System.Windows.Data.Binding(nameof(ActionItem.IsHot)));
-                segment.Click += OnTileClick;
-                segment.DragEnter += OnTileDragEnter;
-                segment.DragOver += OnTileDragOver;
-                segment.DragLeave += OnTileDragLeave;
-                segment.Drop += OnTileDrop;
-                segment.Hint = () => ShowWheelHint(item);
-            }
-            else
-            {
-                segment = new WheelSegment(center, WheelInner, WheelOuter, start, sweep, "", "Plus…", badge: false)
-                {
-                    ToolTip = "Toutes les actions",
-                };
-                AutomationProperties.SetName(segment, $"{i + 1}. Toutes les actions");
-                segment.Click += (_, _) =>
-                {
-                    _listForced = true;
-                    SetState(State.Actions);
-                    FocusFirstAction();
-                };
-                segment.Hint = () => ShowWheelHint(null, "Toutes les actions");
-            }
-
+                DataContext = item,
+                ToolTip = item.Description,
+            };
+            AutomationProperties.SetName(segment, $"{i + 1}. {item.Description}");
+            segment.SetBinding(WheelSegment.IsHotProperty, new System.Windows.Data.Binding(nameof(ActionItem.IsHot)));
+            segment.Click += OnTileClick;
+            segment.DragEnter += OnTileDragEnter;
+            segment.DragOver += OnTileDragOver;
+            segment.DragLeave += OnTileDragLeave;
+            segment.Drop += OnTileDrop;
+            segment.Hint = () => ShowWheelHint(item);
             segment.MouseEnter += (_, _) => segment.Hint?.Invoke();
             segment.GotKeyboardFocus += (_, _) => segment.Hint?.Invoke();
             segment.MouseLeave += (_, _) => ShowWheelHint(null);
@@ -318,19 +310,18 @@ public partial class ConverterPanel : Window
         ShowWheelHint(null);
     }
 
-    /// <summary>Center shows the hovered target (or the file size), the caption says what a release will do.</summary>
     private object? _hinted;
 
-    private void ShowWheelHint(ActionItem? item, string? label = null)
+    /// <summary>Center shows the hovered target (or the file size), the caption says what a release will do.</summary>
+    private void ShowWheelHint(ActionItem? item)
     {
         // A soft tick each time the target changes (mouse, Tab, or a file dragged over another slice).
-        var target = (object?)item ?? label;
-        if (target is not null && !ReferenceEquals(target, _hinted))
+        if (item is not null && !ReferenceEquals(item, _hinted))
         {
             UiSounds.PlayTick();
         }
 
-        _hinted = target;
+        _hinted = item;
         if (item is not null)
         {
             WheelCenterText.Text = item.Title;
@@ -338,35 +329,27 @@ public partial class ConverterPanel : Window
             return;
         }
 
-        if (label is not null)
-        {
-            WheelCenterText.Text = "…";
-            WheelCaption.Text = label;
-            return;
-        }
-
-        var other = _wheelPage == WheelPage.Convert ? WheelPage.Tools : WheelPage.Convert;
-        var canSwitch = PageItems(other).Count > 0;
-        WheelCenterText.Text = _sizeText ?? (_wheelPage == WheelPage.Convert ? "Convertir" : "Outils");
-        WheelCaption.Text = TitleText.Text + (canSwitch
-            ? _wheelPage == WheelPage.Convert ? " · centre : outils" : " · centre : conversions"
-            : string.Empty);
-        AutomationProperties.SetName(WheelCenter, canSwitch
-            ? _wheelPage == WheelPage.Convert ? "Afficher les outils" : "Afficher les conversions"
-            : TitleText.Text);
+        var pageName = _pages.Count > 0 && _pages[_page].FirstOrDefault()?.Action.Group == ActionGroup.Tools ? "Outils" : "Convertir";
+        WheelCenterText.Text = _sizeText ?? pageName;
+        WheelCaption.Text = _pages.Count > 1
+            ? $"{pageName} · page {_page + 1}/{_pages.Count} · Maj : page suivante"
+            : TitleText.Text;
+        AutomationProperties.SetName(WheelCenter, _pages.Count > 1 ? $"Page suivante ({_page + 1} sur {_pages.Count})" : TitleText.Text);
     }
 
-    private void OnWheelCenterClick(object sender, RoutedEventArgs e)
+    private void OnWheelCenterClick(object sender, RoutedEventArgs e) => NextPage();
+
+    /// <summary>During a drag the keyboard belongs to Explorer, but OLE reports Shift with every DragOver.</summary>
+    protected override void OnPreviewDragOver(DragEventArgs e)
     {
-        var other = _wheelPage == WheelPage.Convert ? WheelPage.Tools : WheelPage.Convert;
-        if (PageItems(other).Count == 0)
+        base.OnPreviewDragOver(e);
+        var shift = e.KeyStates.HasFlag(DragDropKeyStates.ShiftKey);
+        if (shift && !_shiftDown && WheelHost.Visibility == Visibility.Visible && _filesFromDrag)
         {
-            return;
+            NextPage();
         }
 
-        UiSounds.PlayTick();
-        _wheelPage = other;
-        BuildWheel();
+        _shiftDown = shift;
     }
 
     private static string Join(params string?[] parts) => string.Join(" · ", parts.Where(p => !string.IsNullOrEmpty(p)));
@@ -492,6 +475,7 @@ public partial class ConverterPanel : Window
     protected override void OnPreviewDragEnter(DragEventArgs e)
     {
         base.OnPreviewDragEnter(e);
+        _shiftDown = e.KeyStates.HasFlag(DragDropKeyStates.ShiftKey); // the gesture key itself is not a page flip
         if (_state is State.Working || (_state is State.Done && _mode != PanelMode.DropZone))
         {
             return;
@@ -915,6 +899,14 @@ public partial class ConverterPanel : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+
+        // Shift flips the wheel to its next page (eight actions per page).
+        if (WheelHost.Visibility == Visibility.Visible && e.Key is Key.LeftShift or Key.RightShift && !e.IsRepeat)
+        {
+            NextPage();
+            e.Handled = true;
+            return;
+        }
 
         // Wheel shortcuts: 1-8 pick a slice, Tab cycles, Enter confirms (standard buttons).
         if (WheelHost.Visibility == Visibility.Visible && _state == State.Actions

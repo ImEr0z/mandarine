@@ -31,7 +31,7 @@ public partial class App : Application, IPanelHost
     private DispatcherTimer? _batchTimer;
     private DispatcherTimer? _reliefTimer;
 
-    public ActionCatalog Catalog { get; } = ActionCatalog.SelfContained();
+    public ActionCatalog Catalog { get; } = Mandarine.App.Actions.WindowsActions.Catalog();
 
     public ToolLocator Tools => _tools;
 

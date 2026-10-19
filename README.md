@@ -10,7 +10,7 @@ Tout se passe sur votre PC, rien n'est envoyé en ligne.</p>
 
 ## Fonctionnement
 
-Mandarine tourne discrètement dans la zone de notification. Les formats s'affichent sur une roue, comme sur Tangerine : survolez ou cliquez un secteur, cliquez au centre pour passer des conversions aux outils, ou tapez 1 à 8. Quatre façons de l'ouvrir :
+Mandarine tourne discrètement dans la zone de notification. Les formats s'affichent sur une roue, comme sur Tangerine : survolez ou cliquez un secteur, appuyez sur <kbd>Maj</kbd> (même pendant le glisser : relâchez puis réappuyez) ou cliquez au centre pour passer à la page suivante, ou tapez 1 à 8 pour choisir un secteur. Toutes les actions tiennent sur la roue, huit par page. Quatre façons de l'ouvrir :
 
 1. **Le geste.** Commencez à faire glisser un fichier depuis l'Explorateur ou le Bureau, puis appuyez sur <kbd>Maj</kbd> : un menu de formats apparaît sous le curseur. Relâchez le fichier sur le format voulu, ou sur l'en-tête du menu pour le garder ouvert et choisir au clic. Appuyer sur <kbd>Maj</kbd> *avant* de cliquer étendrait la sélection de l'Explorateur : la touche se presse une fois le glisser commencé.
 2. **Le clic droit.** « Convertir avec Mandarine » dans le menu contextuel de l'Explorateur (sous Windows 11 : « Afficher plus d'options »), ou « Envoyer vers > Mandarine ». Fonctionne avec une sélection de plusieurs fichiers.
@@ -31,6 +31,7 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 | YAML, XML | JSON | |
 | CSV, TSV | JSON, CSV ↔ TSV | |
 | Archive ZIP, TAR, TAR.GZ, GZ, 7Z, RAR | | Extraire |
+| Image ou PDF (fonctions de Windows) | | Extraire le texte (OCR), Copier le texte, Copier l'image, Fond d'écran, Imprimer |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
 
 Tout est fait par Mandarine elle-même, sans aucun logiciel à installer à côté. L'audio, la vidéo et les documents Office (qui demandent FFmpeg ou LibreOffice) sont mis de côté dans cette version.
