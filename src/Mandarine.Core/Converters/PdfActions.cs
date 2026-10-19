@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Mandarine.Core.Actions;
+using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
@@ -174,10 +175,9 @@ internal sealed class PdfMergeAction : FileAction
                         source = page;
                     }
 
-                    using var document = PdfReader.Open(source, PdfDocumentOpenMode.Import);
-                    foreach (var page in document.Pages)
+                    if (!TryImportPages(merged, source))
                     {
-                        merged.AddPage(page);
+                        AddRenderedPages(merged, source, cancellationToken);
                     }
                 }
 
@@ -202,6 +202,64 @@ internal sealed class PdfMergeAction : FileAction
             progress?.Report(new ActionProgress(ordered.Count, ordered.Count, null, null));
             return new ActionResult([output], []);
         }, cancellationToken);
+
+    /// <summary>Copies the pages as they are (text stays selectable). False if this PDF cannot be imported.</summary>
+    private static bool TryImportPages(PdfDocument merged, string path)
+    {
+        PdfDocument document;
+        try
+        {
+            document = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Modern encryption, unusual producers, slightly broken files: PDFsharp refuses, rendering still works.
+            return false;
+        }
+
+        using (document)
+        {
+            foreach (var page in document.Pages)
+            {
+                merged.AddPage(page);
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Fallback: each page rendered at 200 dpi (the engine that displays PDFs) and placed at its real size.</summary>
+    private static void AddRenderedPages(PdfDocument merged, string path, CancellationToken cancellationToken)
+    {
+        const int Dpi = 200;
+        var bytes = File.ReadAllBytes(path);
+        int count;
+        try
+        {
+            count = PDFtoImage.Conversion.GetPageCount(bytes);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new InvalidOperationException(
+                $"« {Path.GetFileName(path)} » ne peut pas être ouvert (protégé par un mot de passe ou endommagé).", ex);
+        }
+
+        var options = new PDFtoImage.RenderOptions(Dpi: Dpi, WithAnnotations: true, WithFormFill: true,
+            BackgroundColor: SkiaSharp.SKColors.White);
+        for (var index = 0; index < count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var jpeg = new MemoryStream();
+            PDFtoImage.Conversion.SaveJpeg(jpeg, bytes, index, options: options);
+            jpeg.Position = 0;
+            using var image = XImage.FromStream(jpeg);
+            var page = merged.AddPage();
+            page.Width = XUnit.FromPoint(image.PixelWidth * 72.0 / Dpi);
+            page.Height = XUnit.FromPoint(image.PixelHeight * 72.0 / Dpi);
+            using var graphics = XGraphics.FromPdfPage(page);
+            graphics.DrawImage(image, 0, 0, page.Width.Point, page.Height.Point);
+        }
+    }
 }
 
 internal sealed class PdfSplitAction : PerFileAction

@@ -40,6 +40,54 @@ public class PdfTests : IDisposable
     }
 
     [Fact]
+    public async Task Pdfs_protected_against_editing_still_merge()
+    {
+        // Like most invoices and statements: opens without a password, but "owner"-protected against changes.
+        var a = _dir.CreateTextPdf("facture.pdf", "Facture 1", "Facture 2");
+        var protectedPdf = _dir.File("releve.pdf");
+        using (var document = PdfReader.Open(a, PdfDocumentOpenMode.Modify))
+        {
+            document.SecuritySettings.OwnerPassword = "secret";
+            document.SecuritySettings.PermitModifyDocument = false;
+            document.SecuritySettings.PermitAssembleDocument = false;
+            document.Save(protectedPdf);
+        }
+
+        var b = _dir.CreateTextPdf("autre.pdf", "Autre");
+        var result = await _dir.Catalog.Find("pdf.merge")!.RunAsync([protectedPdf, b], _dir.Context, null, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(3, PageCount(result.OutputFiles[0]));
+    }
+
+    [Fact]
+    public async Task Pdf_that_cannot_be_imported_is_merged_as_rendered_pages()
+    {
+        // Broken cross-reference offset: PDF viewers repair it on the fly, PDFsharp refuses the file.
+        var damaged = _dir.CreateTextPdf("abime.pdf", "Page A", "Page B");
+        var bytes = File.ReadAllBytes(damaged);
+        var marker = System.Text.Encoding.ASCII.GetBytes("startxref");
+        var at = bytes.AsSpan().LastIndexOf(marker) + marker.Length;
+        while (bytes[at] is (byte)'\r' or (byte)'\n')
+        {
+            at++;
+        }
+
+        while (bytes[at] is >= (byte)'0' and <= (byte)'9')
+        {
+            bytes[at++] = (byte)'9';
+        }
+
+        File.WriteAllBytes(damaged, bytes);
+        var other = _dir.CreateTextPdf("bon.pdf", "Page C");
+
+        var result = await _dir.Catalog.Find("pdf.merge")!.RunAsync([damaged, other], _dir.Context, null, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(3, PageCount(result.OutputFiles[0]));
+    }
+
+    [Fact]
     public async Task Split_creates_one_file_per_page_in_a_folder()
     {
         var folder = (await _dir.RunAsync("pdf.split", _dir.CreateTextPdf("doc.pdf", "Un", "Deux", "Trois"))).OutputFiles[0];
