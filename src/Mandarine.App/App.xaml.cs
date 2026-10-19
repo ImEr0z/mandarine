@@ -40,7 +40,7 @@ public partial class App : Application, IPanelHost
         {
             // Let the running instance bring its panel to the foreground.
             NativeMethods.AllowSetForegroundWindow(NativeMethods.ASFW_ANY);
-            _instance.TrySendToFirstInstance(e.Args.Length == 0 ? ["--dropzone"] : e.Args);
+            _instance.TrySendToFirstInstance(e.Args);
             Shutdown();
             return;
         }
@@ -74,9 +74,10 @@ public partial class App : Application, IPanelHost
         if (!_settings.FirstRunDone)
         {
             CompleteFirstRun();
+            commandLine = commandLine with { Background = true };
         }
 
-        HandleCommandLine(commandLine with { DropZone = commandLine.DropZone || (!commandLine.Background && commandLine.Files.Count == 0) });
+        HandleCommandLine(commandLine);
     }
 
     private void CompleteFirstRun()
@@ -110,6 +111,12 @@ public partial class App : Application, IPanelHost
         else if (commandLine.DropZone)
         {
             ShowDropZone();
+        }
+        else if (!commandLine.Background)
+        {
+            // Plain launch (Start menu, double-click): no window, just confirm where Mandarine lives.
+            _tray?.Notify("Mandarine est lancé",
+                "Il attend dans la zone de notification. Clic sur l'icône pour la zone de dépôt.");
         }
     }
 
