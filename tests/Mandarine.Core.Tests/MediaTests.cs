@@ -65,6 +65,7 @@ public class MediaTests : IDisposable
     [SkippableFact]
     public async Task Animated_gif_becomes_mp4()
     {
+        _ = Ffmpeg;
         var output = (await _dir.RunAsync("video.to.mp4", _dir.CreateAnimatedGif())).OutputFiles[0];
 
         Assert.EndsWith("anim.mp4", output);
