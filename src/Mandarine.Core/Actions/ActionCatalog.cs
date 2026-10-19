@@ -39,6 +39,14 @@ public sealed class ActionCatalog
 
     public FileAction? Find(string id) => All.FirstOrDefault(a => a.Id == id);
 
+    /// <summary>
+    /// Only what Mandarine does on its own (images, PDF, data, archives, files): nothing that needs
+    /// FFmpeg or LibreOffice to be installed. This is what the app ships with for now; the full
+    /// catalog (audio, video, Office documents) stays available to the tests and a later version.
+    /// </summary>
+    public static ActionCatalog SelfContained() =>
+        new(BuildDefault().Where(a => a.Requires == ExternalTool.None));
+
     private static IEnumerable<FileAction> BuildDefault()
     {
         foreach (var ext in ImageTargets)

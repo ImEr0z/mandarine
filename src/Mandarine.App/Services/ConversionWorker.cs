@@ -152,7 +152,7 @@ internal static class ConversionWorker
             }
 
             request = JsonSerializer.Deserialize<WorkerRequest>(input, Json) ?? throw new InvalidDataException("Requête vide.");
-            var action = new ActionCatalog().Find(request.ActionId) ?? throw new InvalidDataException($"Action inconnue : {request.ActionId}");
+            var action = ActionCatalog.SelfContained().Find(request.ActionId) ?? throw new InvalidDataException($"Action inconnue : {request.ActionId}");
             var context = new ActionContext
             {
                 OutputDirectory = request.OutputDirectory,

@@ -131,5 +131,16 @@ public class CatalogTests : IDisposable
         Assert.Equal(Path.Combine(custom, "photo.png"), OutputPaths.ForFile(input, "png", custom));
     }
 
+    [Fact]
+    public void Shipped_catalog_needs_no_external_tool()
+    {
+        var catalog = ActionCatalog.SelfContained();
+
+        Assert.All(catalog.All, a => Assert.Equal(ExternalTool.None, a.Requires));
+        Assert.NotNull(catalog.Find("image.to.pdf"));
+        Assert.NotNull(catalog.Find("pdf.to.png"));
+        Assert.Null(catalog.Find("video.to.mp4"));
+    }
+
     public void Dispose() => _dir.Dispose();
 }

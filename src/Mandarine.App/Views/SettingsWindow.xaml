@@ -94,10 +94,11 @@
         <TextBlock Text="Sous Windows 11, l'entrée se trouve dans « Afficher plus d'options »."
                    Style="{StaticResource Hint}" Margin="28,2,0,0" />
 
-        <TextBlock Text="Outils complémentaires" Style="{StaticResource Section}" />
-        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10"
+        <!-- Hidden in this version: images, PDF, data and archives need no external tool. -->
+        <TextBlock Text="Outils complémentaires" Style="{StaticResource Section}" Visibility="Collapsed" />
+        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10" Visibility="Collapsed"
                    Text="Gratuits et open source. Sans eux, les images, PDF, données et archives fonctionnent déjà." />
-        <Grid x:Name="ToolsGrid">
+        <Grid x:Name="ToolsGrid" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="110" />
                 <ColumnDefinition Width="*" />

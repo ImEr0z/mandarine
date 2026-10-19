@@ -31,7 +31,7 @@ public partial class App : Application, IPanelHost
     private DispatcherTimer? _batchTimer;
     private DispatcherTimer? _reliefTimer;
 
-    public ActionCatalog Catalog { get; } = new();
+    public ActionCatalog Catalog { get; } = ActionCatalog.SelfContained();
 
     public ToolLocator Tools => _tools;
 
@@ -327,6 +327,11 @@ public partial class App : Application, IPanelHost
     /// <summary>Looks tools up in the background so the first drag-over never waits on disk scans.</summary>
     private void WarmUpTools()
     {
+        if (Catalog.All.All(a => a.Requires == ExternalTool.None))
+        {
+            return; // this version uses no external tool: no disk scan at startup
+        }
+
         var tools = _tools;
         Task.Run(() =>
         {

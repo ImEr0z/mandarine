@@ -24,22 +24,16 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
 | Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64, Combiner en PDF |
-| GIF animé | MP4\*, WEBM\* (et tous les formats image) | |
-| Audio (MP3, WAV, FLAC, AAC/M4A, OGG, OPUS, AIFF, WMA…) | MP3\*, M4A\*, WAV\*, FLAC\*, OGG\*, OPUS\*, AIFF\* | Normaliser le volume\* |
-| Vidéo (MP4, MOV, MKV, WEBM, AVI, WMV…) | MP4\*, MOV\*, MKV\*, WEBM\*, AVI\*, GIF\*, piste audio MP3\*/M4A\*/WAV\* | Compresser\*, Réduire en 720p\*, Supprimer le son\*, Première image\* |
 | PDF | PNG, JPG (une image par page), TXT | Fusionner, Une page par fichier, Pivoter les pages |
-| Word, ODT, RTF, TXT | PDF\*, DOCX\*, ODT\*, RTF\*, TXT\* | |
-| Excel, ODS | PDF\*, XLSX\*, ODS\*, CSV\* | |
-| PowerPoint, ODP | PDF\*, PPTX\*, ODP\* | |
-| Markdown | HTML, PDF\*, DOCX\* | |
-| HTML | Markdown, PDF\*, DOCX\* | |
+| Markdown | HTML | |
+| HTML | Markdown | |
 | JSON | YAML, CSV, XML | |
 | YAML, XML | JSON | |
-| CSV, TSV | JSON, XLSX\*, CSV ↔ TSV | |
+| CSV, TSV | JSON, CSV ↔ TSV | |
 | Archive ZIP, TAR, TAR.GZ, GZ, 7Z, RAR | | Extraire |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
 
-\* Nécessite un outil gratuit : **FFmpeg** pour l'audio et la vidéo, **LibreOffice** pour les documents Office. Au premier usage, Mandarine propose de l'installer via `winget`, puis reprend la conversion. Les tuiles concernées portent une petite flèche de téléchargement.
+Tout est fait par Mandarine elle-même, sans aucun logiciel à installer à côté. L'audio, la vidéo et les documents Office (qui demandent FFmpeg ou LibreOffice) sont mis de côté dans cette version.
 
 Quelques choix faits pour éviter les mauvaises surprises :
 
@@ -65,7 +59,7 @@ Clic droit sur l'icône de notification > **Paramètres** :
 - **Raccourci clavier** de la roue (ou aucun), et **affichage** en roue ou en liste.
 - **Source** : réagir seulement aux glissers depuis l'Explorateur et le Bureau (par défaut), ou depuis n'importe quelle application.
 - **Destination** : à côté de l'original ou dans un dossier fixe.
-- **Qualité** JPEG/WebP/AVIF, lancement au démarrage, intégration au clic droit, emplacement de FFmpeg et LibreOffice.
+- **Qualité** JPEG/WebP/AVIF, lancement au démarrage, intégration au clic droit, sons d'interface.
 
 ## Différences avec Tangerine
 
@@ -108,7 +102,7 @@ Un hook souris bas niveau (`WH_MOUSE_LL`, sur un thread dédié pour ne jamais r
 
 ## Statut et feuille de route
 
-Version 0.1. Le moteur de conversion est couvert par 77 tests automatisés (exécutés avec FFmpeg et LibreOffice réels). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
+Version 0.1. Le moteur de conversion est couvert par 82 tests automatisés. L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
 
 Pistes :
 
