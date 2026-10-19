@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Mandarine.App.Services;
 using Mandarine.Core;
 using Mandarine.Core.Actions;
@@ -12,6 +13,8 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly Func<ExternalTool, Task<bool>> _installTool;
+    private uint _hotkeyModifiers;
+    private int _hotkeyKey;
 
     internal SettingsWindow(AppSettings settings, Func<ExternalTool, Task<bool>> installTool)
     {
@@ -28,6 +31,11 @@ public partial class SettingsWindow : Window
         QualitySlider.Value = _settings.Quality;
         StartupBox.IsChecked = _settings.LaunchAtStartup;
         ContextMenuBox.IsChecked = _settings.ExplorerContextMenu;
+        WheelRadio.IsChecked = _settings.Style == PanelStyle.Wheel;
+        ListRadio.IsChecked = !WheelRadio.IsChecked;
+        _hotkeyModifiers = _settings.HotkeyModifiers;
+        _hotkeyKey = _settings.HotkeyKey;
+        HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = $"Mandarine {version?.ToString(3)} · inspiré de Tangerine pour Mac";
@@ -44,6 +52,7 @@ public partial class SettingsWindow : Window
             TriggerMode.Shift => "Comme Tangerine. Dans l'Explorateur, Maj+glisser sert aussi à déplacer des fichiers : "
                 + "si vous le faites souvent, préférez « secouer ».",
             TriggerMode.Alt => "Alt+glisser sert aussi à créer des raccourcis dans l'Explorateur.",
+            TriggerMode.Ctrl => "Ctrl+glisser sert aussi à copier dans l'Explorateur : sans risque, l'original ne bouge jamais.",
             TriggerMode.Shake => "Aucune touche à retenir : trois allers-retours rapides pendant le glissement.",
             _ => "Le menu reste accessible par clic droit, « Envoyer vers » et l'icône de notification.",
         };
@@ -51,6 +60,54 @@ public partial class SettingsWindow : Window
 
     private TriggerMode SelectedTrigger =>
         Enum.Parse<TriggerMode>((string)((ComboBoxItem)TriggerBox.SelectedItem).Tag);
+
+    // ---- Shortcut recorder (keys are read only while this box has focus) ----
+
+    private void OnHotkeyFocus(object sender, RoutedEventArgs e) => HotkeyBox.Text = "Appuyez sur la combinaison…";
+
+    private void OnHotkeyBlur(object sender, RoutedEventArgs e) => HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
+
+    private void OnHotkeyClear(object sender, RoutedEventArgs e)
+    {
+        _hotkeyModifiers = 0;
+        _hotkeyKey = 0;
+        HotkeyBox.Text = Hotkey.Describe(0, 0);
+    }
+
+    private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
+    {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.Tab && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            return; // keep keyboard navigation out of the box
+        }
+
+        e.Handled = true;
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift
+            or Key.LWin or Key.RWin or Key.Escape)
+        {
+            return;
+        }
+
+        uint modifiers = 0;
+        var held = Keyboard.Modifiers;
+        if (held.HasFlag(ModifierKeys.Control)) modifiers |= Hotkey.Control;
+        if (held.HasFlag(ModifierKeys.Alt)) modifiers |= Hotkey.Alt;
+        if (held.HasFlag(ModifierKeys.Shift)) modifiers |= Hotkey.Shift;
+        if (held.HasFlag(ModifierKeys.Windows)) modifiers |= Hotkey.Win;
+
+        // A plain letter (or Shift+letter) would be stolen from every text field in Windows.
+        var isFunctionKey = key is >= Key.F1 and <= Key.F24;
+        if ((modifiers & (Hotkey.Control | Hotkey.Alt | Hotkey.Win)) == 0 && !isFunctionKey)
+        {
+            HotkeyBox.Text = "Ajoutez Ctrl, Alt ou Win (ou une touche F1 à F24)";
+            return;
+        }
+
+        _hotkeyModifiers = modifiers;
+        _hotkeyKey = KeyInterop.VirtualKeyFromKey(key);
+        HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
+    }
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)
     {
@@ -140,6 +197,9 @@ public partial class SettingsWindow : Window
         _settings.Quality = (int)QualitySlider.Value;
         _settings.LaunchAtStartup = StartupBox.IsChecked == true;
         _settings.ExplorerContextMenu = ContextMenuBox.IsChecked == true;
+        _settings.Style = WheelRadio.IsChecked == true ? PanelStyle.Wheel : PanelStyle.List;
+        _settings.HotkeyModifiers = _hotkeyModifiers;
+        _settings.HotkeyKey = _hotkeyKey;
         Result = _settings;
         DialogResult = true;
     }

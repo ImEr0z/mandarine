@@ -30,12 +30,33 @@
         <ComboBox x:Name="TriggerBox" SelectionChanged="OnTriggerChanged" AutomationProperties.Name="Déclencheur du geste">
             <ComboBoxItem Tag="Shift" Content="maintenant la touche Maj" />
             <ComboBoxItem Tag="Alt" Content="maintenant la touche Alt" />
+            <ComboBoxItem Tag="Ctrl" Content="maintenant la touche Ctrl" />
             <ComboBoxItem Tag="Shake" Content="secouant le fichier de gauche à droite" />
             <ComboBoxItem Tag="Disabled" Content="(désactivé : clic droit et zone de dépôt uniquement)" />
         </ComboBox>
         <TextBlock x:Name="TriggerHint" Style="{StaticResource Hint}" />
         <CheckBox x:Name="ExplorerOnlyBox" Margin="0,10,0,0"
                   Content="Seulement depuis l'Explorateur de fichiers et le Bureau" />
+
+        <TextBlock Text="Raccourci clavier" Style="{StaticResource Section}" />
+        <TextBlock Text="Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur :" Margin="0,0,0,6" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="HotkeyBox" IsReadOnly="True" IsReadOnlyCaretVisible="False" Cursor="Hand"
+                     PreviewKeyDown="OnHotkeyKeyDown" GotKeyboardFocus="OnHotkeyFocus" LostKeyboardFocus="OnHotkeyBlur"
+                     AutomationProperties.Name="Raccourci clavier de la roue"
+                     AutomationProperties.HelpText="Cliquez puis appuyez sur la combinaison voulue" />
+            <Button Grid.Column="1" Content="Désactiver" Margin="8,0,0,0" Click="OnHotkeyClear" />
+        </Grid>
+        <TextBlock x:Name="HotkeyHint" Style="{StaticResource Hint}"
+                   Text="Cliquez dans la case puis appuyez sur la combinaison (au moins Ctrl, Alt ou Win, ou une touche F1 à F24)." />
+
+        <TextBlock Text="Affichage" Style="{StaticResource Section}" />
+        <RadioButton x:Name="WheelRadio" GroupName="Style" Content="Roue de formats (comme Tangerine)" />
+        <RadioButton x:Name="ListRadio" GroupName="Style" Content="Liste" Margin="0,6,0,0" />
 
         <TextBlock Text="Fichiers créés" Style="{StaticResource Section}" />
         <RadioButton x:Name="NextToSourceRadio" GroupName="Output" Content="À côté du fichier d'origine" />

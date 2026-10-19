@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -98,7 +99,7 @@ public partial class ConverterPanel : Window
     internal void ShowArmed(POINT cursor)
     {
         // Opacity 0.01, not 0: fully transparent pixels of a layered window let drops fall through.
-        Card.Opacity = 0.01;
+        Root.Opacity = 0.01;
         SetState(State.Armed);
         PlaceAt(cursor, cursorOnHeader: true);
         Show();
@@ -212,7 +213,142 @@ public partial class ConverterPanel : Window
         SubtitleText.Text = description ?? string.Empty;
         ShowSizeAsync(files, description);
         KindGlyph.Text = GlyphFor(files);
+        _items = items;
+        _sizeText = null;
+        _wheelPage = conversions.Count > 0 ? WheelPage.Convert : WheelPage.Tools;
+        _listForced = false;
+        BuildWheel();
         SetState(State.Actions);
+    }
+
+    // ---- Wheel ----
+
+    private enum WheelPage
+    {
+        Convert,
+        Tools,
+    }
+
+    private const int WheelSlots = 8;
+    private const double WheelSize = 340;
+    private const double WheelInner = 66;
+    private const double WheelOuter = 166;
+
+    private List<ActionItem> _items = [];
+    private WheelPage _wheelPage;
+    private bool _listForced;
+    private string? _sizeText;
+
+    /// <summary>The wheel unless the user prefers the list, or asked for "Plus…" (more actions than slices).</summary>
+    private bool UseWheel => _host.UseWheel && !_listForced;
+
+    private List<ActionItem> PageItems(WheelPage page) =>
+        _items.Where(i => (i.Action.Group == ActionGroup.Convert) == (page == WheelPage.Convert)).ToList();
+
+    private void BuildWheel()
+    {
+        WheelCanvas.Children.Clear();
+        if (!_host.UseWheel)
+        {
+            return;
+        }
+
+        var items = PageItems(_wheelPage);
+        var overflow = items.Count > WheelSlots;
+        var shown = overflow ? items.Take(WheelSlots - 1).ToList() : items;
+        var count = shown.Count + (overflow ? 1 : 0);
+        if (count == 0)
+        {
+            return;
+        }
+
+        var sweep = 360.0 / count;
+        var center = new Point(WheelSize / 2, WheelSize / 2);
+        for (var i = 0; i < count; i++)
+        {
+            var start = -90 - sweep / 2 + i * sweep;
+            WheelSegment segment;
+            if (i < shown.Count)
+            {
+                var item = shown[i];
+                segment = new WheelSegment(center, WheelInner, WheelOuter, start, sweep,
+                    item.Action.Group == ActionGroup.Convert ? null : item.Glyph, item.Title, item.NeedsInstall)
+                {
+                    DataContext = item,
+                    ToolTip = item.Description,
+                };
+                AutomationProperties.SetName(segment, $"{i + 1}. {item.Description}");
+                segment.SetBinding(WheelSegment.IsHotProperty, new System.Windows.Data.Binding(nameof(ActionItem.IsHot)));
+                segment.Click += OnTileClick;
+                segment.DragEnter += OnTileDragEnter;
+                segment.DragOver += OnTileDragOver;
+                segment.DragLeave += OnTileDragLeave;
+                segment.Drop += OnTileDrop;
+                segment.Hint = () => ShowWheelHint(item);
+            }
+            else
+            {
+                segment = new WheelSegment(center, WheelInner, WheelOuter, start, sweep, "", "Plus…", badge: false)
+                {
+                    ToolTip = "Toutes les actions",
+                };
+                AutomationProperties.SetName(segment, $"{i + 1}. Toutes les actions");
+                segment.Click += (_, _) =>
+                {
+                    _listForced = true;
+                    SetState(State.Actions);
+                    FocusFirstAction();
+                };
+                segment.Hint = () => ShowWheelHint(null, "Toutes les actions");
+            }
+
+            segment.MouseEnter += (_, _) => segment.Hint?.Invoke();
+            segment.GotKeyboardFocus += (_, _) => segment.Hint?.Invoke();
+            segment.MouseLeave += (_, _) => ShowWheelHint(null);
+            WheelCanvas.Children.Add(segment);
+        }
+
+        ShowWheelHint(null);
+    }
+
+    /// <summary>Center shows the hovered target (or the file size), the caption says what a release will do.</summary>
+    private void ShowWheelHint(ActionItem? item, string? label = null)
+    {
+        if (item is not null)
+        {
+            WheelCenterText.Text = item.Title;
+            WheelCaption.Text = item.Description;
+            return;
+        }
+
+        if (label is not null)
+        {
+            WheelCenterText.Text = "…";
+            WheelCaption.Text = label;
+            return;
+        }
+
+        var other = _wheelPage == WheelPage.Convert ? WheelPage.Tools : WheelPage.Convert;
+        var canSwitch = PageItems(other).Count > 0;
+        WheelCenterText.Text = _sizeText ?? (_wheelPage == WheelPage.Convert ? "Convertir" : "Outils");
+        WheelCaption.Text = TitleText.Text + (canSwitch
+            ? _wheelPage == WheelPage.Convert ? " · centre : outils" : " · centre : conversions"
+            : string.Empty);
+        AutomationProperties.SetName(WheelCenter, canSwitch
+            ? _wheelPage == WheelPage.Convert ? "Afficher les outils" : "Afficher les conversions"
+            : TitleText.Text);
+    }
+
+    private void OnWheelCenterClick(object sender, RoutedEventArgs e)
+    {
+        var other = _wheelPage == WheelPage.Convert ? WheelPage.Tools : WheelPage.Convert;
+        if (PageItems(other).Count == 0)
+        {
+            return;
+        }
+
+        _wheelPage = other;
+        BuildWheel();
     }
 
     private static string Join(params string?[] parts) => string.Join(" · ", parts.Where(p => !string.IsNullOrEmpty(p)));
@@ -227,6 +363,11 @@ public partial class ConverterPanel : Window
         if (ReferenceEquals(files, _files) && size is not null)
         {
             SubtitleText.Text = Join(description, size);
+            _sizeText = size;
+            if (!WheelCanvas.Children.OfType<WheelSegment>().Any(s => s.IsHighlighted))
+            {
+                ShowWheelHint(null);
+            }
         }
     }
 
@@ -274,6 +415,9 @@ public partial class ConverterPanel : Window
     {
         _state = state;
         HintView.Visibility = state == State.Hint ? Visibility.Visible : Visibility.Collapsed;
+        var wheel = UseWheel && state is State.Actions or State.Armed;
+        WheelHost.Visibility = wheel ? Visibility.Visible : Visibility.Collapsed;
+        Card.Visibility = wheel ? Visibility.Collapsed : Visibility.Visible;
         ActionsView.Visibility = state == State.Actions ? Visibility.Visible : Visibility.Collapsed;
         WorkingView.Visibility = state == State.Working ? Visibility.Visible : Visibility.Collapsed;
         DoneView.Visibility = state == State.Done ? Visibility.Visible : Visibility.Collapsed;
@@ -304,14 +448,25 @@ public partial class ConverterPanel : Window
 
     private void Reveal()
     {
-        if (Card.Opacity < 1)
+        if (Root.Opacity < 1)
         {
-            Card.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+            Root.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
         }
     }
 
+    /// <summary>On the wheel the center takes focus: no slice looks pre-selected, Tab then walks the slices.</summary>
     private void FocusFirstAction() =>
-        Dispatcher.BeginInvoke(() => MoveFocus(new TraversalRequest(FocusNavigationDirection.First)), DispatcherPriority.Input);
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (WheelHost.Visibility == Visibility.Visible)
+            {
+                WheelCenter.Focus();
+            }
+            else
+            {
+                MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            }
+        }, DispatcherPriority.Input);
 
     // ---- Drag and drop on the panel ----
 
@@ -718,6 +873,21 @@ public partial class ConverterPanel : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+
+        // Wheel shortcuts: 1-8 pick a slice, Tab cycles, Enter confirms (standard buttons).
+        if (WheelHost.Visibility == Visibility.Visible && _state == State.Actions
+            && e.Key is >= Key.D1 and <= Key.D8 or >= Key.NumPad1 and <= Key.NumPad8)
+        {
+            var index = e.Key >= Key.NumPad1 ? e.Key - Key.NumPad1 : e.Key - Key.D1;
+            if (WheelCanvas.Children.OfType<WheelSegment>().ElementAtOrDefault(index) is { } segment)
+            {
+                segment.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, segment));
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.Escape)
         {
             return;
@@ -777,11 +947,14 @@ public partial class ConverterPanel : Window
         var hwnd = new WindowInteropHelper(this).EnsureHandle();
         var width = (int)Math.Round(Width * scale);
 
-        // Cursor over the header: the format tiles are right below it, a short move away.
+        // Wheel: centered on the cursor, every slice a short move away. List: cursor over the header, tiles right below.
         var x = cursor.X - (width / 2);
-        var y = cursorOnHeader ? cursor.Y - (int)Math.Round(42 * scale) : cursor.Y + (int)Math.Round(4 * scale);
+        var y = WheelHost.Visibility == Visibility.Visible
+            ? cursor.Y - (int)Math.Round((10 + WheelSize / 2) * scale)
+            : cursorOnHeader ? cursor.Y - (int)Math.Round(42 * scale) : cursor.Y + (int)Math.Round(4 * scale);
         x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - width));
-        y = Math.Clamp(y, work.Top, Math.Max(work.Top, work.Bottom - (int)Math.Round(160 * scale)));
+        var visibleHeight = WheelHost.Visibility == Visibility.Visible ? 400 : 160;
+        y = Math.Clamp(y, work.Top, Math.Max(work.Top, work.Bottom - (int)Math.Round(visibleHeight * scale)));
 
         FitHeight(work, scale);
         SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);

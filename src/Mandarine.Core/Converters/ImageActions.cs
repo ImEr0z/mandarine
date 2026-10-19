@@ -17,6 +17,7 @@ internal static class ImageFormats
         ["tiff"] = MagickFormat.Tiff,
         ["ico"] = MagickFormat.Icon,
         ["jxl"] = MagickFormat.Jxl,
+        ["pdf"] = MagickFormat.Pdf,
     };
 
     private static readonly HashSet<string> Animated = ["gif", "webp"];
@@ -24,7 +25,7 @@ internal static class ImageFormats
     // Every ImageMagick read and write goes through this class: lock the library down before the first one.
     static ImageFormats() => MagickSecurity.EnsureApplied();
 
-    private static readonly HashSet<string> Lossy = ["jpg", "webp", "avif", "jxl"];
+    private static readonly HashSet<string> Lossy = ["jpg", "webp", "avif", "jxl", "pdf"];
 
     public static bool IsImage(string path) => FileKinds.Detect(path) == FileKind.Image;
 
@@ -66,7 +67,7 @@ internal static class ImageFormats
     /// <summary>Formats without transparency get a white background instead of black.</summary>
     public static void FlattenIfOpaqueTarget(IMagickImage<byte> image, string targetExtension)
     {
-        if (Extensions.Normalize(targetExtension) is "jpg" or "bmp" && image.HasAlpha)
+        if (Extensions.Normalize(targetExtension) is "jpg" or "bmp" or "pdf" && image.HasAlpha)
         {
             image.BackgroundColor = MagickColors.White;
             image.Alpha(AlphaAction.Remove);
@@ -76,6 +77,17 @@ internal static class ImageFormats
     public static void Write(MagickImage image, string output, string extension)
     {
         var ext = Extensions.Normalize(extension);
+        if (ext == "pdf")
+        {
+            // One page sized like A4 for the longest side (instead of 1 px = 1/72 in), JPEG-compressed.
+            image.Density = new Density(Math.Max(72, Math.Max(image.Width, image.Height) / 11.69));
+            image.Settings.Compression = CompressionMethod.JPEG;
+            if (image.Quality == 0)
+            {
+                image.Quality = 85;
+            }
+        }
+
         if (ext == "ico")
         {
             if (image.Width > 256 || image.Height > 256)

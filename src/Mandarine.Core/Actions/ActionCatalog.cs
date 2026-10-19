@@ -5,7 +5,8 @@ namespace Mandarine.Core.Actions;
 /// <summary>Every action Mandarine knows, in display order.</summary>
 public sealed class ActionCatalog
 {
-    public static readonly IReadOnlyList<string> ImageTargets = ["png", "jpg", "webp", "avif", "gif", "bmp", "tiff", "ico", "jxl"];
+    // Order = order on the wheel: the most useful targets first (8 slices before "Plus…").
+    public static readonly IReadOnlyList<string> ImageTargets = ["png", "jpg", "pdf", "webp", "avif", "gif", "bmp", "tiff", "ico", "jxl"];
 
     public ActionCatalog()
         : this(BuildDefault())

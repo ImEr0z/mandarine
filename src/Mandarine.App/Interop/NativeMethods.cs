@@ -13,6 +13,7 @@ internal static class NativeMethods
 
     public const int VK_SHIFT = 0x10;
     public const int VK_MENU = 0x12;
+    public const int VK_CONTROL = 0x11;
 
     public const uint GA_ROOT = 2;
     public const uint MONITOR_DEFAULTTONULL = 0;
@@ -169,6 +170,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);

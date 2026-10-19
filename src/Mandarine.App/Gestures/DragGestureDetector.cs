@@ -59,6 +59,7 @@ internal sealed class DragGestureDetector
         {
             TriggerMode.Shift => IsKeyDown(VK_SHIFT),
             TriggerMode.Alt => IsKeyDown(VK_MENU),
+            TriggerMode.Ctrl => IsKeyDown(VK_CONTROL),
             TriggerMode.Shake => _shake.Add(point, Environment.TickCount64),
             _ => false,
         };

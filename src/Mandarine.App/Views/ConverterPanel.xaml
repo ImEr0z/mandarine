@@ -19,6 +19,38 @@
         Foreground="{DynamicResource Text.Primary}">
 
     <Window.Resources>
+        <!-- Keyboard focus only (not after a mouse click): a ring around the center pill. -->
+        <Style x:Key="PillFocus">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="-3" CornerRadius="24" BorderThickness="2" BorderBrush="{DynamicResource Focus}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WheelCenterButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource PillFocus}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Pill" MinWidth="112" Height="42" Padding="14,0" CornerRadius="21" BorderThickness="1"
+                                Background="{DynamicResource Tile.Background}" BorderBrush="{DynamicResource Tile.Border}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pill" Property="Background" Value="{DynamicResource Tile.Hover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="ConvertTileTemplate" DataType="{x:Type views:ActionItem}">
             <Button Style="{StaticResource ConvertTile}"
                     ToolTip="{Binding Description}"
@@ -62,6 +94,29 @@
             </Button>
         </DataTemplate>
     </Window.Resources>
+
+    <Grid x:Name="Root">
+    <!-- Format wheel (Tangerine style): shown instead of the card while choosing an action. -->
+    <StackPanel x:Name="WheelHost" Visibility="Collapsed" Margin="10" HorizontalAlignment="Center">
+        <Grid Width="340" Height="340">
+            <Ellipse Fill="{DynamicResource Panel.Background}" Stroke="{DynamicResource Panel.Border}" StrokeThickness="1"
+                     MouseLeftButtonDown="OnCardMouseLeftButtonDown">
+                <Ellipse.Effect>
+                    <DropShadowEffect BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.3" Color="Black" />
+                </Ellipse.Effect>
+            </Ellipse>
+            <Canvas x:Name="WheelCanvas" Width="340" Height="340" />
+            <Button x:Name="WheelCenter" Style="{StaticResource WheelCenterButton}" Click="OnWheelCenterClick"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="WheelCenterText" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="104" />
+            </Button>
+        </Grid>
+        <Border HorizontalAlignment="Center" Margin="0,8,0,0" Padding="12,4" CornerRadius="12"
+                Background="{DynamicResource Panel.Background}" BorderBrush="{DynamicResource Panel.Border}" BorderThickness="1">
+            <TextBlock x:Name="WheelCaption" FontSize="12.5" Foreground="{DynamicResource Text.Secondary}"
+                       AutomationProperties.LiveSetting="Polite" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+        </Border>
+    </StackPanel>
 
     <!-- 12 px transparent margin leaves room for the shadow. -->
     <Border x:Name="Card" Margin="12" Padding="12" CornerRadius="10" BorderThickness="1"
@@ -166,4 +221,5 @@
             </StackPanel>
         </StackPanel>
     </Border>
+    </Grid>
 </Window>

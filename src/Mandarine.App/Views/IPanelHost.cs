@@ -10,6 +10,9 @@ internal interface IPanelHost
 
     ToolLocator Tools { get; }
 
+    /// <summary>Show actions on a wheel (Tangerine style) rather than as a list.</summary>
+    bool UseWheel { get; }
+
     ActionContext CreateContext();
 
     /// <summary>Installs a missing tool; true when it can be used afterwards.</summary>

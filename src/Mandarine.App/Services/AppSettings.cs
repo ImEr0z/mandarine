@@ -13,10 +13,19 @@ public enum TriggerMode
     /// <summary>Hold Alt while dragging.</summary>
     Alt,
 
+    /// <summary>Hold Ctrl while dragging. In Explorer, Ctrl also means "copy", which is harmless.</summary>
+    Ctrl,
+
     /// <summary>Shake the file left and right while dragging, no modifier needed.</summary>
     Shake,
 
     Disabled,
+}
+
+public enum PanelStyle
+{
+    Wheel,
+    List,
 }
 
 public sealed class AppSettings
@@ -42,6 +51,15 @@ public sealed class AppSettings
     public bool Paused { get; set; }
 
     public bool FirstRunDone { get; set; }
+
+    /// <summary>Formats on a wheel (like Tangerine) or as a list.</summary>
+    public PanelStyle Style { get; set; } = PanelStyle.Wheel;
+
+    /// <summary>Shortcut that opens the wheel for the files selected in Explorer or on the desktop (MOD_* flags).</summary>
+    public uint HotkeyModifiers { get; set; } = Hotkey.Control | Hotkey.Shift;
+
+    /// <summary>Virtual-key code of the shortcut; 0 disables it.</summary>
+    public int HotkeyKey { get; set; } = 0x20; // Space
 
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 

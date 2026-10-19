@@ -27,12 +27,15 @@ public partial class App : Application, IPanelHost
     private ConverterPanel? _gesturePanel;
     private ConverterPanel? _dropZone;
     private SettingsWindow? _settingsWindow;
+    private Hotkey? _hotkey;
     private DispatcherTimer? _batchTimer;
     private DispatcherTimer? _reliefTimer;
 
     public ActionCatalog Catalog { get; } = new();
 
     public ToolLocator Tools => _tools;
+
+    public bool UseWheel => _settings.Style == PanelStyle.Wheel;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -97,6 +100,10 @@ public partial class App : Application, IPanelHost
         _hook.Moved += _detector.OnMove;
         _hook.LeftButtonUp += _detector.OnButtonUp;
         ApplyGestureSettings();
+
+        _hotkey = new Hotkey();
+        _hotkey.Pressed += OnHotkeyPressed;
+        ApplyHotkey(notifyOnFailure: true);
 
         _instance.ArgumentsReceived += args => Dispatcher.BeginInvoke(() => HandleCommandLine(CommandLine.Parse(args)));
         _instance.Listen();
@@ -279,6 +286,7 @@ public partial class App : Application, IPanelHost
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
         ApplyGestureSettings();
+        ApplyHotkey(notifyOnFailure: true);
 
         try
         {
@@ -416,6 +424,43 @@ public partial class App : Application, IPanelHost
         }
     }
 
+    // ---- Shortcut ----
+
+    private void ApplyHotkey(bool notifyOnFailure)
+    {
+        if (_hotkey is null)
+        {
+            return;
+        }
+
+        if (!_hotkey.Set(_settings.HotkeyModifiers, _settings.HotkeyKey) && notifyOnFailure)
+        {
+            _tray?.Notify("Raccourci indisponible",
+                $"{Hotkey.Describe(_settings.HotkeyModifiers, _settings.HotkeyKey)} est déjà utilisé par une autre application. "
+                + "Choisissez-en un autre dans les paramètres.");
+        }
+    }
+
+    /// <summary>Selected files in Explorer or on the desktop + the shortcut: the wheel opens under the mouse.</summary>
+    private void OnHotkeyPressed()
+    {
+        if (_settings.Paused)
+        {
+            return;
+        }
+
+        var files = ExplorerSelection.FromForegroundWindow();
+        if (files.Count == 0)
+        {
+            _tray?.Notify("Aucun fichier sélectionné",
+                "Sélectionnez un ou plusieurs fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur "
+                + Hotkey.Describe(_settings.HotkeyModifiers, _settings.HotkeyKey) + ".");
+            return;
+        }
+
+        Track(new ConverterPanel(this, PanelMode.Picker)).ShowPicker(files, NativeMethods.CursorPosition());
+    }
+
     // ---- Uninstall ----
 
     private void Uninstall()
@@ -466,6 +511,7 @@ public partial class App : Application, IPanelHost
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _hook?.Dispose();
+        _hotkey?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);

@@ -156,5 +156,21 @@ public class ImageTests : IDisposable
         Assert.StartsWith("data:image/png;base64,iVBOR", result.ClipboardText);
     }
 
+    [Fact]
+    public async Task Single_image_becomes_a_one_page_pdf()
+    {
+        var png = _dir.File("scan.png");
+        using (var image = new MagickImage(MagickColors.Orange, 1200, 1600))
+        {
+            image.Write(png);
+        }
+
+        var pdf = (await _dir.RunAsync("image.to.pdf", png)).OutputFiles[0];
+
+        Assert.Equal(_dir.File("scan.pdf"), pdf);
+        using var document = PdfSharp.Pdf.IO.PdfReader.Open(pdf, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        Assert.Equal(1, document.PageCount);
+    }
+
     public void Dispose() => _dir.Dispose();
 }

@@ -10,11 +10,11 @@ Tout se passe sur votre PC, rien n'est envoyé en ligne.</p>
 
 ## Fonctionnement
 
-Mandarine tourne discrètement dans la zone de notification. Trois façons de l'utiliser :
+Mandarine tourne discrètement dans la zone de notification. Les formats s'affichent sur une roue, comme sur Tangerine : survolez ou cliquez un secteur, cliquez au centre pour passer des conversions aux outils, ou tapez 1 à 8. Quatre façons de l'ouvrir :
 
 1. **Le geste.** Commencez à faire glisser un fichier depuis l'Explorateur ou le Bureau, puis appuyez sur <kbd>Maj</kbd> : un menu de formats apparaît sous le curseur. Relâchez le fichier sur le format voulu, ou sur l'en-tête du menu pour le garder ouvert et choisir au clic. Appuyer sur <kbd>Maj</kbd> *avant* de cliquer étendrait la sélection de l'Explorateur : la touche se presse une fois le glisser commencé.
 2. **Le clic droit.** « Convertir avec Mandarine » dans le menu contextuel de l'Explorateur (sous Windows 11 : « Afficher plus d'options »), ou « Envoyer vers > Mandarine ». Fonctionne avec une sélection de plusieurs fichiers.
-3. **La zone de dépôt.** Clic sur l'icône de notification : une zone reste ouverte en bas à droite de l'écran, il suffit d'y glisser des fichiers.
+. **Le raccourci.** Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Espace</kbd> : la roue s'ouvre sous la souris. Le raccourci se change dans les paramètres.
 
 Les fichiers créés sont placés à côté de l'original (ou dans un dossier choisi). Un fichier existant n'est jamais écrasé : `photo.png` devient `photo (2).png`. Les fichiers déposés sont toujours copiés, jamais déplacés.
 
@@ -22,7 +22,7 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
-| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64, Combiner en PDF |
+| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64, Combiner en PDF |
 | GIF animé | MP4\*, WEBM\* (et tous les formats image) | |
 | Audio (MP3, WAV, FLAC, AAC/M4A, OGG, OPUS, AIFF, WMA…) | MP3\*, M4A\*, WAV\*, FLAC\*, OGG\*, OPUS\*, AIFF\* | Normaliser le volume\* |
 | Vidéo (MP4, MOV, MKV, WEBM, AVI, WMV…) | MP4\*, MOV\*, MKV\*, WEBM\*, AVI\*, GIF\*, piste audio MP3\*/M4A\*/WAV\* | Compresser\*, Réduire en 720p\*, Supprimer le son\*, Première image\* |
@@ -60,7 +60,8 @@ L'exécutable n'est pas signé : Windows SmartScreen affichera un avertissement 
 
 Clic droit sur l'icône de notification > **Paramètres** :
 
-- **Geste** : <kbd>Maj</kbd> (comme Tangerine), <kbd>Alt</kbd>, *secouer le fichier*, ou désactivé. Dans l'Explorateur, Maj+glisser sert aussi à *déplacer* des fichiers : si c'est un réflexe pour vous, choisissez « secouer » (trois allers-retours rapides pendant le glissement).
+- **Geste** : <kbd>Maj</kbd> (comme Tangerine), <kbd>Ctrl</kbd>, <kbd>Alt</kbd>, *secouer le fichier*, ou désactivé. Dans l'Explorateur, Maj+glisser sert aussi à *déplacer* des fichiers : si c'est un réflexe pour vous, choisissez « secouer » (trois allers-retours rapides pendant le glissement).
+- **Raccourci clavier** de la roue (ou aucun), et **affichage** en roue ou en liste.
 - **Source** : réagir seulement aux glissers depuis l'Explorateur et le Bureau (par défaut), ou depuis n'importe quelle application.
 - **Destination** : à côté de l'original ou dans un dossier fixe.
 - **Qualité** JPEG/WebP/AVIF, lancement au démarrage, intégration au clic droit, emplacement de FFmpeg et LibreOffice.
