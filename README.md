@@ -94,6 +94,8 @@ dotnet publish src/Mandarine.App -c Release -r win-x64 --self-contained `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
 ```
 
+`.\run.ps1` recompile l'application dans `publish\` et la relance depuis là : le menu Démarrer, le clic droit et le lancement au démarrage utilisent alors toujours la dernière version du code.
+
 Ajouter une conversion revient à écrire une classe dérivée de `PerFileAction` (un fichier en entrée, un fichier en sortie) ou de `FileAction`, puis à l'enregistrer dans `ActionCatalog`. Le panneau l'affiche automatiquement pour les fichiers qu'elle accepte.
 
 La CI GitHub Actions compile, teste et publie `Mandarine-win-x64.zip` et `Mandarine-win-arm64.zip` à chaque push. Pousser un tag `v*` crée une release avec ces deux archives.
