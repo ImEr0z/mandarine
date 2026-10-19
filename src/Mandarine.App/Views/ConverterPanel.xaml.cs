@@ -35,7 +35,10 @@ internal enum PanelMode
 public partial class ConverterPanel : Window
 {
     private static readonly TimeSpan ReleaseGrace = TimeSpan.FromMilliseconds(350);
-    private static readonly TimeSpan ResultLinger = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ResultLinger = TimeSpan.FromSeconds(3);
+
+    /// <summary>Cursor position when the result appeared: a still mouse over the card does not keep it open.</summary>
+    private POINT _doneCursor;
 
     private readonly IPanelHost _host;
     private readonly DispatcherTimer _lingerTimer;
@@ -64,7 +67,6 @@ public partial class ConverterPanel : Window
         _lingerTimer.Tick += (_, _) => OnLingerElapsed();
         SizeChanged += (_, _) => KeepOnScreen();
         DpiChanged += (_, _) => Dispatcher.BeginInvoke(KeepOnScreen, DispatcherPriority.Loaded);
-        MouseEnter += (_, _) => _lingerTimer.Stop();
         MouseLeave += (_, _) =>
         {
             if (_state == State.Done && _primaryCommand != DoneCommand.Install && ErrorText.Visibility != Visibility.Visible)
@@ -110,6 +112,11 @@ public partial class ConverterPanel : Window
         LoadFiles(files, fromDrag: false);
         PlaceAt(cursor, cursorOnHeader: false);
         Show();
+        if (WheelHost.Visibility == Visibility.Visible)
+        {
+            UiSounds.PlayOpen();
+        }
+
         Activate();
         FocusFirstAction();
     }
@@ -312,8 +319,18 @@ public partial class ConverterPanel : Window
     }
 
     /// <summary>Center shows the hovered target (or the file size), the caption says what a release will do.</summary>
+    private object? _hinted;
+
     private void ShowWheelHint(ActionItem? item, string? label = null)
     {
+        // A soft tick each time the target changes (mouse, Tab, or a file dragged over another slice).
+        var target = (object?)item ?? label;
+        if (target is not null && !ReferenceEquals(target, _hinted))
+        {
+            UiSounds.PlayTick();
+        }
+
+        _hinted = target;
         if (item is not null)
         {
             WheelCenterText.Text = item.Title;
@@ -347,6 +364,7 @@ public partial class ConverterPanel : Window
             return;
         }
 
+        UiSounds.PlayTick();
         _wheelPage = other;
         BuildWheel();
     }
@@ -450,6 +468,7 @@ public partial class ConverterPanel : Window
     {
         if (Root.Opacity < 1)
         {
+            UiSounds.PlayOpen();
             Root.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
         }
     }
@@ -722,9 +741,21 @@ public partial class ConverterPanel : Window
             SetButtons(("Fermer", DoneCommand.Close), null);
         }
 
-        SetState(State.Done);
-        if (failed == 0 && !IsMouseOver)
+        if (failed == 0)
         {
+            UiSounds.PlaySuccess();
+        }
+        else
+        {
+            UiSounds.PlayError();
+        }
+
+        SetState(State.Done);
+        // Success closes by itself after a few seconds, even though the card opened under the mouse.
+        // Errors stay until read.
+        if (failed == 0)
+        {
+            _doneCursor = CursorPosition();
             _lingerTimer.Start();
         }
     }
@@ -832,10 +863,21 @@ public partial class ConverterPanel : Window
     private void OnLingerElapsed()
     {
         _lingerTimer.Stop();
-        if (_state == State.Done && !IsMouseOver)
+        if (_state != State.Done)
         {
-            CloseOrReset();
+            return;
         }
+
+        // The user is moving over the card (heading for "Ouvrir"): give them a little more time.
+        var cursor = CursorPosition();
+        if (IsMouseOver && (cursor.X != _doneCursor.X || cursor.Y != _doneCursor.Y))
+        {
+            _doneCursor = cursor;
+            _lingerTimer.Start();
+            return;
+        }
+
+        CloseOrReset();
     }
 
     private void CloseOrReset()

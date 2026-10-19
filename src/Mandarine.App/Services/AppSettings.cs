@@ -55,6 +55,9 @@ public sealed class AppSettings
     /// <summary>Formats on a wheel (like Tangerine) or as a list.</summary>
     public PanelStyle Style { get; set; } = PanelStyle.Wheel;
 
+    /// <summary>Soft sounds when moving over the wheel and when a conversion ends.</summary>
+    public bool Sounds { get; set; } = true;
+
     /// <summary>Shortcut that opens the wheel for the files selected in Explorer or on the desktop (MOD_* flags).</summary>
     public uint HotkeyModifiers { get; set; } = Hotkey.Control | Hotkey.Shift;
 

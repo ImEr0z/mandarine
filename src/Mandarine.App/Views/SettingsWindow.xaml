@@ -57,6 +57,7 @@
         <TextBlock Text="Affichage" Style="{StaticResource Section}" />
         <RadioButton x:Name="WheelRadio" GroupName="Style" Content="Roue de formats (comme Tangerine)" />
         <RadioButton x:Name="ListRadio" GroupName="Style" Content="Liste" Margin="0,6,0,0" />
+        <CheckBox x:Name="SoundsBox" Margin="0,10,0,0" Content="Petits sons d'interface (survol de la roue, fin de conversion)" />
 
         <TextBlock Text="Fichiers créés" Style="{StaticResource Section}" />
         <RadioButton x:Name="NextToSourceRadio" GroupName="Output" Content="À côté du fichier d'origine" />

@@ -80,6 +80,7 @@ public partial class App : Application, IPanelHost
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         _settings = _store.Load();
+        UiSounds.Enabled = _settings.Sounds;
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
         ThemeManager.Apply(this);
@@ -283,6 +284,7 @@ public partial class App : Application, IPanelHost
         var previous = _settings;
         _settings = updated;
         _store.Save(_settings);
+        UiSounds.Enabled = _settings.Sounds;
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
         ApplyGestureSettings();

@@ -33,6 +33,7 @@ public partial class SettingsWindow : Window
         ContextMenuBox.IsChecked = _settings.ExplorerContextMenu;
         WheelRadio.IsChecked = _settings.Style == PanelStyle.Wheel;
         ListRadio.IsChecked = !WheelRadio.IsChecked;
+        SoundsBox.IsChecked = _settings.Sounds;
         _hotkeyModifiers = _settings.HotkeyModifiers;
         _hotkeyKey = _settings.HotkeyKey;
         HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
@@ -198,6 +199,7 @@ public partial class SettingsWindow : Window
         _settings.LaunchAtStartup = StartupBox.IsChecked == true;
         _settings.ExplorerContextMenu = ContextMenuBox.IsChecked == true;
         _settings.Style = WheelRadio.IsChecked == true ? PanelStyle.Wheel : PanelStyle.List;
+        _settings.Sounds = SoundsBox.IsChecked == true;
         _settings.HotkeyModifiers = _hotkeyModifiers;
         _settings.HotkeyKey = _hotkeyKey;
         Result = _settings;
