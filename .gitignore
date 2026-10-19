@@ -9,3 +9,4 @@ publish/
 .idea/
 TestResults/
 *.DotSettings.user
+*.lnk

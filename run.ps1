@@ -16,13 +16,15 @@ if ($LASTEXITCODE -ne 0) { throw "La compilation a échoué." }
 Remove-Item (Join-Path $publish '*.pdb') -ErrorAction SilentlyContinue
 
 # The first run registers the right-click menu and startup entry for this exe; later runs keep them.
-$shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'Mandarine.lnk'
-$shell = New-Object -ComObject WScript.Shell
-$link = $shell.CreateShortcut($shortcut)
-$link.TargetPath = $exe
-$link.IconLocation = "$exe,0"
-$link.Description = 'Convertisseur de fichiers'
-$link.Save()
+$programs = [Environment]::GetFolderPath('Programs')
+if ($programs) {
+    $shell = New-Object -ComObject WScript.Shell
+    $link = $shell.CreateShortcut((Join-Path $programs 'Mandarine.lnk'))
+    $link.TargetPath = $exe
+    $link.IconLocation = "$exe,0"
+    $link.Description = 'Convertisseur de fichiers'
+    $link.Save()
+}
 
 Start-Process $exe
 Write-Host "Mandarine relancé depuis $exe"
