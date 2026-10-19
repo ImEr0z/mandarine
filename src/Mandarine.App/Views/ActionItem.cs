@@ -33,6 +33,9 @@ public sealed class ActionItem(FileAction action, bool needsInstall) : INotifyPr
         }
     }
 
+    /// <summary>UI Automation names the item containers after it (otherwise the type name).</summary>
+    public override string ToString() => Description;
+
     public string WorkingLabel => Action.Group == ActionGroup.Convert ? $"Conversion en {Action.Title}" : Action.Title;
 
     public bool IsHot

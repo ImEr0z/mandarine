@@ -92,10 +92,13 @@ internal sealed class OfficeConvertAction(
         return output;
     }
 
-    /// <summary>Plain text and CSV are read as UTF-8 (LibreOffice otherwise guesses the ANSI code page).</summary>
+    /// <summary>
+    /// Plain text and CSV are read as UTF-8 (LibreOffice otherwise guesses the ANSI code page).
+    /// Recent LibreOffice ignores a bare "UTF8": the text import options must be spelled out in full.
+    /// </summary>
     private static string? DefaultInputFilter(string input) => FileKinds.Detect(input) switch
     {
-        FileKind.Text => "Text (encoded):UTF8",
+        FileKind.Text => "Text (encoded):UTF8,LF,,,",
         FileKind.Csv => $"CSV:{(int)Csv.DetectDelimiter(ReadHead(input), input)},34,76,1",
         _ => null,
     };
