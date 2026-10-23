@@ -116,6 +116,15 @@ public partial class App : Application, IPanelHost
             commandLine = commandLine with { Background = true };
         }
 
+        try
+        {
+            ShellIntegration.RefreshPaths(_settings);
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write(ex);
+        }
+
         HandleCommandLine(commandLine);
         ScheduleIdleRelief();
         _ = AppUpdater.CheckAsync();

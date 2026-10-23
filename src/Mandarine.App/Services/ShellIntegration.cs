@@ -23,6 +23,22 @@ internal static class ShellIntegration
         SetExplorerIntegration(settings.ExplorerContextMenu);
     }
 
+    /// <summary>
+    /// Re-registers the entries when they point at another copy of the exe (installed over a zip copy,
+    /// moved folder): they must always launch the copy that is running.
+    /// </summary>
+    public static void RefreshPaths(AppSettings settings)
+    {
+        using var run = Registry.CurrentUser.OpenSubKey(RunKey);
+        using var verb = Registry.CurrentUser.OpenSubKey(VerbKeys[0] + @"\command");
+        var stale = (run?.GetValue(AppName) as string is { } startup && !startup.Contains(ExecutablePath, StringComparison.OrdinalIgnoreCase))
+                    || (verb?.GetValue(null) as string is { } command && !command.Contains(ExecutablePath, StringComparison.OrdinalIgnoreCase));
+        if (stale)
+        {
+            Apply(settings);
+        }
+    }
+
     /// <summary>Removes every trace Mandarine left in Windows: startup entry, context menu, "Send to", Start menu.</summary>
     public static void RemoveAll()
     {
