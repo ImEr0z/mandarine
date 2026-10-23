@@ -39,6 +39,12 @@ internal static class ShellIntegration
         }
     }
 
+    /// <summary>Tells Explorer and the taskbar that icons changed (same as an association change).</summary>
+    public static void RefreshIcons() => SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+
+    [DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+
     /// <summary>Removes every trace Mandarine left in Windows: startup entry, context menu, "Send to", Start menu.</summary>
     public static void RemoveAll()
     {

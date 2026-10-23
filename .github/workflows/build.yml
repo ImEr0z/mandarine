@@ -51,8 +51,11 @@ jobs:
             $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_CERT_PFX_BASE64))
           }
+          # The tag v1.2.3 is the version shown in the settings window (otherwise the default from Directory.Build.props).
+          $versionArgs = @()
+          if ('${{ github.ref_type }}' -eq 'tag') { $versionArgs = "-p:Version=$('${{ github.ref_name }}'.TrimStart('v'))" }
           foreach ($rid in 'win-x64', 'win-arm64') {
-            dotnet publish src/Mandarine.App -c Release -r $rid --self-contained true `
+            dotnet publish src/Mandarine.App -c Release -r $rid --self-contained true $versionArgs `
               -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
               -p:DebugType=none -o "out/$rid"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

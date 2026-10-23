@@ -11,6 +11,9 @@ internal static class Program
         // Must run first: the installer and the updater start Mandarine.exe with special arguments
         // (install, update, uninstall) that this call handles, then exits.
         VelopackApp.Build()
+            // Explorer can cache a blank icon while the installer swaps the "current" folder: ask it to look again.
+            .OnAfterInstallFastCallback(_ => ShellIntegration.RefreshIcons())
+            .OnAfterUpdateFastCallback(_ => ShellIntegration.RefreshIcons())
             .OnBeforeUninstallFastCallback(_ => ShellIntegration.RemoveAll())
             .Run();
 
