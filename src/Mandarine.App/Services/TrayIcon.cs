@@ -12,7 +12,6 @@ internal sealed class TrayIcon : IDisposable
     public TrayIcon(bool paused)
     {
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Ouvrir la zone de dépôt", null, (_, _) => DropZoneRequested?.Invoke());
         menu.Items.Add("Paramètres…", null, (_, _) => SettingsRequested?.Invoke());
         menu.Items.Add(new Forms.ToolStripSeparator());
         _pauseItem = new Forms.ToolStripMenuItem("Suspendre le geste") { CheckOnClick = true, Checked = paused };
@@ -35,12 +34,12 @@ internal sealed class TrayIcon : IDisposable
         {
             if (e.Button == Forms.MouseButtons.Left)
             {
-                DropZoneRequested?.Invoke();
+                // Left click opens the same menu as right click (NotifyIcon only does that by itself for the right one).
+                typeof(Forms.NotifyIcon).GetMethod("ShowContextMenu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    ?.Invoke(_icon, null);
             }
         };
     }
-
-    public event Action? DropZoneRequested;
 
     public event Action? SettingsRequested;
 

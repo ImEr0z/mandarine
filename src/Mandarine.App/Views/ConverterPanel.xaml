@@ -160,19 +160,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Drop zone hint -->
-            <Grid x:Name="HintView" Height="132" Margin="0,12,0,0" Visibility="Collapsed">
-                <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1.5" StrokeDashArray="4 3"
-                           Stroke="{DynamicResource Text.Secondary}" Opacity="0.6" />
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="&#xE898;" FontFamily="{StaticResource IconFont}" FontSize="22"
-                               HorizontalAlignment="Center" Foreground="{DynamicResource Accent}" />
-                    <TextBlock Text="Glissez des fichiers ici" Margin="0,8,0,0" HorizontalAlignment="Center" FontWeight="SemiBold" />
-                    <TextBlock Text="puis relâchez-les sur un format" FontSize="12" HorizontalAlignment="Center"
-                               Foreground="{DynamicResource Text.Secondary}" />
-                </StackPanel>
-            </Grid>
-
             <!-- Actions -->
             <ScrollViewer x:Name="ActionsView" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0"
                           Visibility="Collapsed" PreviewDragOver="OnActionsPreviewDragOver">

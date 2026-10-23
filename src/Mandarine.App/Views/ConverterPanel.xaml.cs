@@ -26,9 +26,6 @@ internal enum PanelMode
 
     /// <summary>Opened with known files (context menu, "Send to", drop on the header): actions are clicked.</summary>
     Picker,
-
-    /// <summary>Persistent drop target opened from the notification area.</summary>
-    DropZone,
 }
 
 /// <summary>The format menu shown at the cursor.</summary>
@@ -53,10 +50,6 @@ public partial class ConverterPanel : Window
     private ExternalTool _missingTool;
     private DoneCommand _primaryCommand;
     private DoneCommand _secondaryCommand;
-    private bool _movedByUser;
-
-    /// <summary>Where the user last left the drop zone, so reopening it does not snap back to the corner.</summary>
-    private static POINT? _dropZonePosition;
 
     internal ConverterPanel(IPanelHost host, PanelMode mode)
     {
@@ -79,7 +72,6 @@ public partial class ConverterPanel : Window
     private enum State
     {
         Armed,
-        Hint,
         Actions,
         Working,
         Done,
@@ -121,29 +113,6 @@ public partial class ConverterPanel : Window
         FocusFirstAction();
     }
 
-    internal void ShowDropZone()
-    {
-        SetState(State.Hint);
-        var cursor = CursorPosition();
-        var (work, scale) = ScreenGeometry.MonitorAt(cursor);
-        var hwnd = new WindowInteropHelper(this).EnsureHandle();
-        var width = (int)Math.Round(Width * scale);
-        FitHeight(work, scale);
-        // Only reuse the saved spot if a monitor is still there (screens may have changed since).
-        if (_dropZonePosition is { } saved && MonitorFromPoint(saved, MONITOR_DEFAULTTONULL) != IntPtr.Zero)
-        {
-            _movedByUser = true;
-            SetWindowPos(hwnd, HWND_TOPMOST, saved.X, saved.Y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
-        }
-        else
-        {
-            SetWindowPos(hwnd, HWND_TOPMOST, work.Right - width, work.Bottom - (int)(260 * scale), 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
-        }
-
-        Show();
-        Activate();
-    }
-
     /// <summary>The panel has no title bar: it is moved by grabbing anywhere outside its buttons.</summary>
     private void OnCardMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -153,17 +122,8 @@ public partial class ConverterPanel : Window
         }
 
         DragMove();
-        _movedByUser = true;
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (_mode == PanelMode.DropZone && GetWindowRect(hwnd, out var rect))
-        {
-            _dropZonePosition = new POINT(rect.Left, rect.Top);
-        }
-
         KeepOnScreen();
     }
-
-    internal bool IsDropZone => _mode == PanelMode.DropZone;
 
     /// <summary>Called when the mouse button goes up after the gesture that opened this panel.</summary>
     internal void OnGestureReleased()
@@ -415,7 +375,6 @@ public partial class ConverterPanel : Window
     private void SetState(State state)
     {
         _state = state;
-        HintView.Visibility = state == State.Hint ? Visibility.Visible : Visibility.Collapsed;
         var wheel = UseWheel && state is State.Actions or State.Armed;
         WheelHost.Visibility = wheel ? Visibility.Visible : Visibility.Collapsed;
         Card.Visibility = wheel ? Visibility.Collapsed : Visibility.Visible;
@@ -434,13 +393,6 @@ public partial class ConverterPanel : Window
                     Announce(ErrorText);
                 }
             }, DispatcherPriority.Loaded);
-        }
-
-        if (state == State.Hint)
-        {
-            TitleText.Text = "Mandarine";
-            SubtitleText.Text = "Zone de dépôt";
-            KindGlyph.Text = "\uE898";
         }
     }
 
@@ -476,7 +428,7 @@ public partial class ConverterPanel : Window
     {
         base.OnPreviewDragEnter(e);
         _shiftDown = e.KeyStates.HasFlag(DragDropKeyStates.ShiftKey); // the gesture key itself is not a page flip
-        if (_state is State.Working || (_state is State.Done && _mode != PanelMode.DropZone))
+        if (_state is State.Working || _state is State.Done)
         {
             return;
         }
@@ -522,17 +474,6 @@ public partial class ConverterPanel : Window
 
         LoadFiles(files, fromDrag: false);
         Activate();
-    }
-
-    protected override void OnDragLeave(DragEventArgs e)
-    {
-        base.OnDragLeave(e);
-        var position = e.GetPosition(Card);
-        var left = position.X < 0 || position.Y < 0 || position.X > Card.ActualWidth || position.Y > Card.ActualHeight;
-        if (left && _mode == PanelMode.DropZone && _state == State.Actions && _filesFromDrag)
-        {
-            SetState(State.Hint);
-        }
     }
 
     private void OnActionsPreviewDragOver(object sender, DragEventArgs e)
@@ -867,15 +808,7 @@ public partial class ConverterPanel : Window
     private void CloseOrReset()
     {
         _lingerTimer.Stop();
-        if (_mode == PanelMode.DropZone)
-        {
-            _files = [];
-            SetState(State.Hint);
-        }
-        else
-        {
-            CloseOnce();
-        }
+        CloseOnce();
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e)
@@ -888,7 +821,7 @@ public partial class ConverterPanel : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
-        if (_state != State.Working && _mode != PanelMode.DropZone)
+        if (_state != State.Working)
         {
             CloseOnce();
         }
@@ -997,7 +930,7 @@ public partial class ConverterPanel : Window
     /// <summary>Long action lists scroll instead of running off a small or highly scaled screen.</summary>
     private void FitHeight(RECT work, double scale) => ActionsView.MaxHeight = Math.Max(220, (work.Height / scale) - 170);
 
-    /// <summary>Slides the window back inside the work area when it grows (drop zone stays docked bottom-right).</summary>
+    /// <summary>Slides the window back inside the work area when it grows .</summary>
     private void KeepOnScreen()
     {
         var hwnd = new WindowInteropHelper(this).Handle;
@@ -1008,7 +941,7 @@ public partial class ConverterPanel : Window
 
         var (work, _) = ScreenGeometry.MonitorAt(new POINT((rect.Left + rect.Right) / 2, rect.Top));
         var dx = 0;
-        var dy = _mode == PanelMode.DropZone && !_movedByUser ? work.Bottom - rect.Bottom : 0;
+        var dy = 0;
         if (rect.Bottom + dy > work.Bottom)
         {
             dy = work.Bottom - rect.Bottom;

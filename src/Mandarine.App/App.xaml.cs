@@ -25,7 +25,6 @@ public partial class App : Application, IPanelHost
     private MouseHook? _hook;
     private DragGestureDetector? _detector;
     private ConverterPanel? _gesturePanel;
-    private ConverterPanel? _dropZone;
     private SettingsWindow? _settingsWindow;
     private Hotkey? _hotkey;
     private DispatcherTimer? _batchTimer;
@@ -87,7 +86,6 @@ public partial class App : Application, IPanelHost
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         _tray = new TrayIcon(_settings.Paused);
-        _tray.DropZoneRequested += ShowDropZone;
         _tray.SettingsRequested += OpenSettings;
         _tray.PauseChanged += SetPaused;
         _tray.ExitRequested += () => Shutdown();
@@ -158,15 +156,11 @@ public partial class App : Application, IPanelHost
         {
             OpenSettings();
         }
-        else if (commandLine.DropZone)
-        {
-            ShowDropZone();
-        }
         else if (!commandLine.Background)
         {
             // Plain launch (Start menu, double-click): no window, just confirm where Mandarine lives.
             _tray?.Notify("Mandarine est lancé",
-                "Il attend dans la zone de notification. Clic sur l'icône pour la zone de dépôt.");
+                "Il attend dans la zone de notification : faites glisser un fichier puis appuyez sur Maj, ou utilisez le clic droit.");
         }
     }
 
@@ -241,7 +235,7 @@ public partial class App : Application, IPanelHost
         catch (System.ComponentModel.Win32Exception ex)
         {
             _tray?.Notify("Geste indisponible", $"Windows a refusé la détection du glisser ({ex.Message}). "
-                + "Le clic droit et la zone de dépôt restent disponibles.");
+                + "Le clic droit reste disponible.");
         }
     }
 
@@ -253,19 +247,6 @@ public partial class App : Application, IPanelHost
     }
 
     // ---- Windows ----
-
-    private void ShowDropZone()
-    {
-        if (_dropZone is not null)
-        {
-            _dropZone.Activate();
-            return;
-        }
-
-        _dropZone = Track(new ConverterPanel(this, PanelMode.DropZone));
-        _dropZone.Closed += (_, _) => _dropZone = null;
-        _dropZone.ShowDropZone();
-    }
 
     public void OpenSettings()
     {
