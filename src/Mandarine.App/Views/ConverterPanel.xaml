@@ -37,10 +37,19 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Pill" MinWidth="112" Height="42" Padding="14,0" CornerRadius="21" BorderThickness="1"
-                                Background="{DynamicResource Tile.Background}" BorderBrush="{DynamicResource Tile.Border}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Grid MinWidth="112" Height="42">
+                            <Border x:Name="Pill" CornerRadius="21" BorderThickness="1" Opacity="0.65"
+                                    Background="{DynamicResource Tile.Background}" BorderBrush="{DynamicResource Tile.Border}" />
+                            <Border CornerRadius="21" IsHitTestVisible="False">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                        <GradientStop Color="#40FFFFFF" Offset="0" />
+                                        <GradientStop Color="#00FFFFFF" Offset="0.6" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <ContentPresenter Margin="14,0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Pill" Property="Background" Value="{DynamicResource Tile.Hover}" />
@@ -100,9 +109,9 @@
     <StackPanel x:Name="WheelHost" Visibility="Collapsed" Margin="10" HorizontalAlignment="Center">
         <Grid Width="340" Height="340">
             <Ellipse Fill="{DynamicResource Panel.Background}" Stroke="{DynamicResource Panel.Border}" StrokeThickness="1"
-                     MouseLeftButtonDown="OnCardMouseLeftButtonDown">
+                     Opacity="0.62" MouseLeftButtonDown="OnCardMouseLeftButtonDown">
                 <Ellipse.Effect>
-                    <DropShadowEffect BlurRadius="22" ShadowDepth="4" Direction="270" Opacity="0.3" Color="Black" />
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="6" Direction="270" Opacity="0.22" Color="Black" />
                 </Ellipse.Effect>
             </Ellipse>
             <Canvas x:Name="WheelCanvas" Width="340" Height="340" />

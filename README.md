@@ -46,8 +46,10 @@ Quelques choix faits pour éviter les mauvaises surprises :
 
 ## Installation
 
-1. Téléchargez `Mandarine-win-x64.zip` (ou `win-arm64` pour les PC ARM) depuis la page [Releases](../../releases).
-2. Décompressez `Mandarine.exe` où vous voulez (par exemple `%LOCALAPPDATA%\Programs\Mandarine`) et lancez-le.
+1. Téléchargez `MandarineApp-win-Setup.exe` depuis la page [Releases](../../releases) et lancez-le : Mandarine s'installe pour l'utilisateur courant (`%LOCALAPPDATA%\MandarineApp`), avec un raccourci du menu Démarrer et une entrée dans « Applications installées ».
+2. Sans installation : `Mandarine-win-x64.zip` (ou `win-arm64` pour les PC ARM) contient seulement `Mandarine.exe`, à lancer où vous voulez. Cette version ne se met pas à jour toute seule.
+
+Mises à jour : une version installée cherche une release plus récente 10 secondes après son lancement, la télécharge et redémarre dedans. Cela suppose que le dépôt (ou ses releases) soit public.
 
 Aucun droit administrateur n'est nécessaire et aucun runtime .NET n'est à installer : l'exécutable est autonome. Au premier lancement, Mandarine s'ajoute au démarrage de la session, au clic droit et à « Envoyer vers » (désactivable dans les paramètres).
 
@@ -96,7 +98,7 @@ dotnet publish src/Mandarine.App -c Release -r win-x64 --self-contained `
 
 Ajouter une conversion revient à écrire une classe dérivée de `PerFileAction` (un fichier en entrée, un fichier en sortie) ou de `FileAction`, puis à l'enregistrer dans `ActionCatalog`. Le panneau l'affiche automatiquement pour les fichiers qu'elle accepte.
 
-La CI GitHub Actions compile, teste et publie `Mandarine-win-x64.zip` et `Mandarine-win-arm64.zip` à chaque push. Pousser un tag `v*` crée une release avec ces deux archives.
+La CI GitHub Actions compile, teste et publie `Mandarine-win-x64.zip` et `Mandarine-win-arm64.zip` à chaque push. Pousser un tag `v*` (par exemple `git tag v0.2.0 && git push origin v0.2.0`) crée une release avec ces deux archives, l'installateur `MandarineApp-win-Setup.exe` et les fichiers que les copies installées lisent pour se mettre à jour. Le numéro de version est celui du tag.
 
 ### Comment marche le geste
 

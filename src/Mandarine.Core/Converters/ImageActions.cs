@@ -242,6 +242,14 @@ internal sealed class ImageToolAction(
                 image.Settings.SetDefine(MagickFormat.Png, "compression-level", "9");
                 image.Settings.SetDefine(MagickFormat.WebP, "method", "6");
             });
+        // Square, centered crop: Discord / social avatars (512 px is the usual upload size).
+        yield return new ImageToolAction("image.icon", "Icône 512 px", "", "icône",
+            (image, _) =>
+            {
+                image.Resize(new MagickGeometry(512, 512) { FillArea = true });
+                image.Crop(512, 512, Gravity.Center);
+                image.ResetPage();
+            });
         yield return new ImageToolAction("image.strip", "Sans métadonnées", "\uEA18", "sans métadonnées",
             (image, _) => RemoveMetadata(image));
         yield return new ImageToolAction("image.rotate.right", "Pivoter à droite", "\uE7A6", "pivotée",

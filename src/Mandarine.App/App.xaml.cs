@@ -118,6 +118,7 @@ public partial class App : Application, IPanelHost
 
         HandleCommandLine(commandLine);
         ScheduleIdleRelief();
+        _ = AppUpdater.CheckAsync();
     }
 
     private void CompleteFirstRun()
@@ -474,7 +475,10 @@ public partial class App : Application, IPanelHost
     {
         var answer = MessageBox.Show(
             "Retirer Mandarine de Windows ?\n\nLe clic droit, « Envoyer vers », le lancement au démarrage, le raccourci du menu Démarrer "
-            + "et les paramètres seront supprimés. Il ne restera que Mandarine.exe, à supprimer vous-même.",
+            + "et les paramètres seront supprimés. "
+            + (AppUpdater.IsInstalled
+                ? "L'application elle-même se retire depuis les Paramètres Windows, « Applications installées »."
+                : "Il ne restera que Mandarine.exe, à supprimer vous-même."),
             "Désinstaller Mandarine", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (answer != MessageBoxResult.Yes)
         {

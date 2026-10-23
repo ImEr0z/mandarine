@@ -11,6 +11,8 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <RootNamespace>Mandarine.App</RootNamespace>
     <AssemblyName>Mandarine</AssemblyName>
+    <!-- Program.Main starts Velopack (installer / updater hooks) before WPF; App.xaml's generated Main is not used. -->
+    <StartupObject>Mandarine.App.Program</StartupObject>
     <ApplicationIcon>Assets\mandarine.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WPF0001: ThemeMode is experimental. WFO0003: DPI awareness belongs in the manifest for a WPF app. -->
@@ -42,6 +44,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Mandarine.Core\Mandarine.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
 </Project>

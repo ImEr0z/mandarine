@@ -68,12 +68,27 @@ jobs:
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
           } | Set-Content out/SHA256SUMS.txt -Encoding ascii
 
+      # Installer + update feed (Velopack), x64. The tag v1.2.3 becomes version 1.2.3; the installed app
+      # checks the latest GitHub release for newer versions at launch.
+      - name: Installer (Velopack)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          Remove-Item out/win-x64/*.pdb -ErrorAction SilentlyContinue
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          dotnet vpk pack --packId MandarineApp --packVersion $version --packDir out/win-x64 `
+            --mainExe Mandarine.exe --packTitle Mandarine --icon src/Mandarine.App/Assets/mandarine.ico `
+            --outputDir out/velopack
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Mandarine-windows
           path: |
             out/*.zip
             out/SHA256SUMS.txt
+            out/velopack/*
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -92,4 +107,5 @@ jobs:
           files: |
             out/*.zip
             out/SHA256SUMS.txt
+            out/velopack/*
           generate_release_notes: true

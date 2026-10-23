@@ -33,6 +33,7 @@ internal sealed class WheelSegment : Button
 
     private readonly Geometry _shape;
     private readonly Geometry _hitShape;
+    private readonly Geometry _outline;
     private readonly Point _labelCenter;
     private readonly string? _glyph;
     private readonly string _title;
@@ -50,6 +51,9 @@ internal sealed class WheelSegment : Button
         _shape = Sector(center, innerRadius + inset, outerRadius - inset, startDegrees, sweepDegrees, (GapPixels + CornerRounding) / 2);
         _hitShape = _shape.GetWidenedPathGeometry(new Pen(Brushes.Black, CornerRounding));
         _hitShape.Freeze();
+        // Fill + rounded stroke as ONE shape, so a translucent fill is not drawn twice where they overlap.
+        _outline = Geometry.Combine(_shape, _hitShape, GeometryCombineMode.Union, null);
+        _outline.Freeze();
         var middle = (startDegrees + sweepDegrees / 2) * Math.PI / 180;
         var labelRadius = (innerRadius + outerRadius) / 2;
         _labelCenter = new Point(center.X + labelRadius * Math.Cos(middle), center.Y + labelRadius * Math.Sin(middle));
@@ -99,13 +103,41 @@ internal sealed class WheelSegment : Button
 
     public bool IsHighlighted => IsHot || IsMouseOver || IsKeyboardFocused;
 
+    private static readonly Brush Sheen = Frozen(new LinearGradientBrush(
+        [new GradientStop(Color.FromArgb(70, 255, 255, 255), 0), new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.55)],
+        new Point(0.5, 0), new Point(0.5, 1)));
+
+    private static readonly Pen Rim = new(Frozen(new LinearGradientBrush(
+        [new GradientStop(Color.FromArgb(120, 255, 255, 255), 0), new GradientStop(Color.FromArgb(18, 255, 255, 255), 1)],
+        new Point(0.5, 0), new Point(0.5, 1))), 1);
+
+    private static T Frozen<T>(T freezable) where T : Freezable
+    {
+        freezable.Freeze();
+        return freezable;
+    }
+
     protected override void OnRender(DrawingContext drawing)
     {
         var highlighted = IsHighlighted;
         var fill = Brush(highlighted ? "Accent" : IsPressed ? "Tile.Pressed" : "Tile.Background");
         var text = highlighted ? Brushes.White : Brush("Text.Primary");
-        drawing.DrawGeometry(fill, new Pen(fill, CornerRounding) { LineJoin = PenLineJoin.Round }, _shape);
-        if (!highlighted)
+
+        // Liquid-glass look: translucent tile, soft light from the top, thin lit rim. Plain colors in high contrast.
+        var glass = !SystemParameters.HighContrast && fill is SolidColorBrush;
+        if (glass)
+        {
+            var color = ((SolidColorBrush)fill).Color;
+            fill = new SolidColorBrush(Color.FromArgb((byte)(highlighted ? 215 : 140), color.R, color.G, color.B));
+        }
+
+        drawing.DrawGeometry(fill, null, _outline);
+        if (glass)
+        {
+            drawing.DrawGeometry(Sheen, null, _outline);
+            drawing.DrawGeometry(null, Rim, _outline);
+        }
+        else if (!highlighted)
         {
             drawing.DrawGeometry(null, new Pen(Brush("Tile.Border"), 1), _shape);
         }
@@ -120,14 +152,17 @@ internal sealed class WheelSegment : Button
         title.TextAlignment = TextAlignment.Center;
         title.Trimming = TextTrimming.CharacterEllipsis;
 
-        var glyphHeight = glyph is null ? 0 : glyph.Height + 2;
-        var top = _labelCenter.Y - (glyphHeight + title.Height) / 2;
+        // Center the visible ink, not the text box: the box has more room above the caps than below the baseline.
+        var inkTop = title.Baseline - 0.72 * titleSize;
+        var inkHeight = title.Height - inkTop - 0.2 * titleSize;
+        var glyphHeight = glyph is null ? 0 : glyph.Height + 3;
+        var top = _labelCenter.Y - (glyphHeight + inkHeight) / 2;
         if (glyph is not null)
         {
             drawing.DrawText(glyph, new Point(_labelCenter.X - glyph.Width / 2, top));
         }
 
-        drawing.DrawText(title, new Point(_labelCenter.X - title.MaxTextWidth / 2, top + glyphHeight));
+        drawing.DrawText(title, new Point(_labelCenter.X - title.MaxTextWidth / 2, top + glyphHeight - inkTop));
 
         if (_badge)
         {

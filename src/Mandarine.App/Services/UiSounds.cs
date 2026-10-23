@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Mandarine.App.Services;
 
 /// <summary>
-/// Short, quiet interface sounds synthesized at first use (no audio files to ship or license) and played
+/// Short, soft interface sounds synthesized at first use (no audio files to ship or license) and played
 /// asynchronously by Windows, so they never delay the UI. A few kilobytes, kept outside the managed heap
 /// because Windows reads them while the sound plays.
 /// </summary>
@@ -64,24 +64,25 @@ internal static class UiSounds
 
     // ---- Synthesis: soft sines with a quick attack and an exponential fade ----
 
-    private static float[] Tick() => Tone(0.035, t => 0.10 * Envelope(t, 0.002, 70) * Math.Sin(2 * Math.PI * 1760 * t));
+    // Rounded and low: slow 12-20 ms attack (no click), gentle decay, quiet, a soft octave overtone for warmth.
+    private static float[] Tick() => Tone(0.06, t => 0.045 * Envelope(t, 0.012, 55) * (Math.Sin(2 * Math.PI * 880 * t) + 0.25 * Math.Sin(2 * Math.PI * 1760 * t)));
 
-    private static float[] Open() => Tone(0.11, t =>
+    private static float[] Open() => Tone(0.16, t =>
     {
-        // Gentle upward glide, like a bubble.
-        var frequency = 520 + 380 * Math.Min(1, t / 0.08);
-        return 0.11 * Envelope(t, 0.004, 28) * Math.Sin(2 * Math.PI * frequency * t);
+        // Soft upward glide, like a bubble.
+        var frequency = 440 + 220 * Math.Min(1, t / 0.12);
+        return 0.05 * Envelope(t, 0.018, 20) * Math.Sin(2 * Math.PI * frequency * t);
     });
 
-    private static float[] Success() => Tone(0.42, t =>
-        0.13 * Note(t, 0.0, 880) + 0.13 * Note(t, 0.09, 1318.5) + 0.04 * Note(t, 0.09, 2637));
+    private static float[] Success() => Tone(0.6, t =>
+        0.06 * Note(t, 0.0, 784) + 0.06 * Note(t, 0.1, 1175) + 0.015 * Note(t, 0.1, 2350));
 
-    private static float[] Failure() => Tone(0.38, t => 0.12 * Note(t, 0.0, 494) + 0.12 * Note(t, 0.12, 370));
+    private static float[] Failure() => Tone(0.5, t => 0.055 * Note(t, 0.0, 392) + 0.055 * Note(t, 0.13, 311));
 
     private static double Note(double t, double start, double frequency)
     {
         var local = t - start;
-        return local < 0 ? 0 : Envelope(local, 0.005, 11) * Math.Sin(2 * Math.PI * frequency * local);
+        return local < 0 ? 0 : Envelope(local, 0.015, 8) * Math.Sin(2 * Math.PI * frequency * local);
     }
 
     private static double Envelope(double t, double attack, double decay) =>

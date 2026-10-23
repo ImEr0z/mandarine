@@ -99,6 +99,15 @@ public class ImageTests : IDisposable
     }
 
     [Fact]
+    public async Task Icon_is_a_512_square_crop()
+    {
+        var icon = (await _dir.RunAsync("image.icon", _dir.CreateImage("wide.png", 3000, 1000))).OutputFiles[0];
+
+        var info = new MagickImageInfo(icon);
+        Assert.Equal((512u, 512u), (info.Width, info.Height));
+    }
+
+    [Fact]
     public async Task Trim_removes_transparent_margins()
     {
         var trimmed = (await _dir.RunAsync("image.trim", _dir.CreateImage())).OutputFiles[0];
