@@ -13,6 +13,7 @@ internal sealed class TrayIcon : IDisposable
     {
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Paramètres…", null, (_, _) => SettingsRequested?.Invoke());
+        menu.Items.Add("Rechercher une mise à jour", null, (_, _) => UpdateCheckRequested?.Invoke());
         menu.Items.Add(new Forms.ToolStripSeparator());
         _pauseItem = new Forms.ToolStripMenuItem("Suspendre le geste") { CheckOnClick = true, Checked = paused };
         _pauseItem.CheckedChanged += (_, _) => PauseChanged?.Invoke(_pauseItem.Checked);
@@ -42,6 +43,8 @@ internal sealed class TrayIcon : IDisposable
     }
 
     public event Action? SettingsRequested;
+
+    public event Action? UpdateCheckRequested;
 
     public event Action<bool>? PauseChanged;
 

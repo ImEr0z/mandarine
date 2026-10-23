@@ -69,6 +69,71 @@ public partial class App : Application, IPanelHost
             return;
         }
 
+        if (CommandLine.Parse(arguments).Files.Count == 0 && AppUpdater.IsInstalled)
+        {
+            // Look for a newer version first: update and restart into it, or carry on starting.
+            _ = UpdateThenStartAsync(arguments);
+            return;
+        }
+
+        Start(arguments);
+    }
+
+    private async Task UpdateThenStartAsync(string[] arguments)
+    {
+        UpdateWindow? window = null;
+        try
+        {
+            var update = await AppUpdater.FindAsync(TimeSpan.FromSeconds(4));
+            if (update is not null)
+            {
+                window = new UpdateWindow(update.TargetFullRelease.Version.ToString());
+                window.Show();
+                await AppUpdater.DownloadAsync(update, window.SetProgress);
+                AppUpdater.ApplyAndRestart(update, arguments);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Offline, rate-limited, no release yet...: start the installed version and try again next time.
+            ErrorLog.Write(ex);
+        }
+
+        window?.Close();
+        Start(arguments);
+    }
+
+    private async void CheckForUpdatesFromTray()
+    {
+        if (!AppUpdater.IsInstalled)
+        {
+            _tray?.Notify("Mises à jour", "Disponibles seulement avec la version installée (MandarineApp-win-Setup.exe).");
+            return;
+        }
+
+        try
+        {
+            var update = await AppUpdater.FindAsync(TimeSpan.FromSeconds(15));
+            if (update is null)
+            {
+                _tray?.Notify("Mandarine est à jour", $"Version {AppUpdater.CurrentVersion}.");
+                return;
+            }
+
+            _tray?.Notify("Mise à jour trouvée", $"Version {update.TargetFullRelease.Version} : téléchargement, puis redémarrage.");
+            await AppUpdater.DownloadAsync(update);
+            AppUpdater.ApplyAndRestart(update, ["--background"]);
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write(ex);
+            _tray?.Notify("Mises à jour", "Impossible de vérifier pour l'instant. Réessayez plus tard.");
+        }
+    }
+
+    private void Start(string[] arguments)
+    {
         DispatcherUnhandledException += OnUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) => ErrorLog.Write(args.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, args) =>
@@ -86,7 +151,9 @@ public partial class App : Application, IPanelHost
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         _tray = new TrayIcon(_settings.Paused);
-        _tray.SettingsRequested += OpenSettings;
+        // Open after the menu has finished closing (not from inside its click handler, which would nest a modal loop in it).
+        _tray.SettingsRequested += () => Dispatcher.BeginInvoke(OpenSettings);
+        _tray.UpdateCheckRequested += CheckForUpdatesFromTray;
         _tray.PauseChanged += SetPaused;
         _tray.ExitRequested += () => Shutdown();
         _tray.UninstallRequested += Uninstall;
@@ -104,7 +171,7 @@ public partial class App : Application, IPanelHost
         _hotkey.Pressed += OnHotkeyPressed;
         ApplyHotkey(notifyOnFailure: true);
 
-        _instance.ArgumentsReceived += args => Dispatcher.BeginInvoke(() => HandleCommandLine(CommandLine.Parse(args)));
+        _instance!.ArgumentsReceived += args => Dispatcher.BeginInvoke(() => HandleCommandLine(CommandLine.Parse(args)));
         _instance.Listen();
 
         var commandLine = CommandLine.Parse(arguments);
@@ -125,7 +192,6 @@ public partial class App : Application, IPanelHost
 
         HandleCommandLine(commandLine);
         ScheduleIdleRelief();
-        _ = AppUpdater.CheckAsync();
     }
 
     private void CompleteFirstRun()
@@ -283,9 +349,9 @@ public partial class App : Application, IPanelHost
 
         try
         {
-            if (previous.LaunchAtStartup != updated.LaunchAtStartup)
+            if (previous.LaunchAtStartup != updated.LaunchAtStartup || previous.StartMinimized != updated.StartMinimized)
             {
-                ShellIntegration.SetLaunchAtStartup(updated.LaunchAtStartup);
+                ShellIntegration.SetLaunchAtStartup(updated.LaunchAtStartup, updated.StartMinimized);
             }
 
             if (previous.ExplorerContextMenu != updated.ExplorerContextMenu)

@@ -30,6 +30,7 @@ public partial class SettingsWindow : Window
         FolderBox.Text = _settings.OutputDirectory ?? string.Empty;
         QualitySlider.Value = _settings.Quality;
         StartupBox.IsChecked = _settings.LaunchAtStartup;
+        StartMinimizedBox.IsChecked = _settings.StartMinimized;
         ContextMenuBox.IsChecked = _settings.ExplorerContextMenu;
         WheelRadio.IsChecked = _settings.Style == PanelStyle.Wheel;
         ListRadio.IsChecked = !WheelRadio.IsChecked;
@@ -197,6 +198,7 @@ public partial class SettingsWindow : Window
         _settings.OutputDirectory = FolderRadio.IsChecked == true ? folder : null;
         _settings.Quality = (int)QualitySlider.Value;
         _settings.LaunchAtStartup = StartupBox.IsChecked == true;
+        _settings.StartMinimized = StartMinimizedBox.IsChecked == true;
         _settings.ExplorerContextMenu = ContextMenuBox.IsChecked == true;
         _settings.Style = WheelRadio.IsChecked == true ? PanelStyle.Wheel : PanelStyle.List;
         _settings.Sounds = SoundsBox.IsChecked == true;

@@ -42,6 +42,9 @@ public sealed class AppSettings
 
     public bool LaunchAtStartup { get; set; } = true;
 
+    /// <summary>At login, start quietly in the notification area (no "Mandarine est lancé" message).</summary>
+    public bool StartMinimized { get; set; } = true;
+
     public bool ExplorerContextMenu { get; set; } = true;
 
     public string? FfmpegPath { get; set; }

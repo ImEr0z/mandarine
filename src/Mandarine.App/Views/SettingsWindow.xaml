@@ -89,6 +89,8 @@
 
         <TextBlock Text="Windows" Style="{StaticResource Section}" />
         <CheckBox x:Name="StartupBox" Content="Lancer Mandarine à l'ouverture de session" />
+        <CheckBox x:Name="StartMinimizedBox" Margin="28,8,0,0" IsEnabled="{Binding IsChecked, ElementName=StartupBox}"
+                  Content="Démarrer réduit dans la zone de notification (sans message)" />
         <CheckBox x:Name="ContextMenuBox" Margin="0,8,0,0"
                   Content="Ajouter « Convertir avec Mandarine » au clic droit et à « Envoyer vers »" />
         <TextBlock Text="Sous Windows 11, l'entrée se trouve dans « Afficher plus d'options »."
