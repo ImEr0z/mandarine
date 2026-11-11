@@ -15,6 +15,13 @@ internal static class ReleaseNotes
 {
     public static readonly Release[] All =
     [
+        new("0.7.0", "novembre 2026", "PDF cherchable et réglages par type", [
+            new("🔍", "PDF cherchable", "Un PDF scanné ou une photo de page devient un PDF dont on peut chercher et copier le texte. Le texte est lu sur ton PC, avec Windows."),
+            new("🩹", "Réparer un PDF", "Un PDF abîmé est réécrit en copie propre, prête à s'ouvrir."),
+            new("🎛️", "Réglages par type de fichier", "Pour les images, les PDF et le reste : dossier de destination, qualité, taille maximale, résolution des pages et un texte ajouté au nom."),
+            new("🕘", "Conversions récentes", "Retrouve les derniers fichiers créés, avec une miniature, depuis le menu de l'icône. Un clic les ouvre."),
+            new("🪄", "Nouveautés plus nettes", "La page Nouveautés s'ouvre directement au centre, sans sauter."),
+        ]),
         new("0.6.0", "novembre 2026", "Signer, caviarder, retoucher et ranger", [
             new("✍️", "Signer un PDF", "Dessine ta signature ou ajoute une image, pose-la sur la page. Tes signatures sont gardées pour la prochaine fois."),
             new("🛡️", "Caviarder", "Cache des infos sensibles dans un PDF : le texte dessous est vraiment supprimé, pas seulement masqué."),

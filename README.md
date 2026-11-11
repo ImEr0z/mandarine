@@ -350,7 +350,7 @@ Au repos, Mandarine occupe une dizaine de Mo de mémoire de travail et 0 % de pr
 
 ## Feuille de route
 
-Version 0.6. Le moteur est couvert par plus de 90 tests automatisés (certains sont ignorés si FFmpeg ou LibreOffice sont absents). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur davantage de configurations (multi-écrans à échelles différentes, Windows 10, ARM).
+Version 0.7. Le moteur est couvert par plus de 90 tests automatisés (certains sont ignorés si FFmpeg ou LibreOffice sont absents). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur davantage de configurations (multi-écrans à échelles différentes, Windows 10, ARM).
 
 Pistes :
 
