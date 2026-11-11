@@ -26,6 +26,7 @@ internal sealed class DuplicatesWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
         _recursive.Content = new TextBlock { Text = "Inclure les sous-dossiers", FontSize = 13.5 };
+        _recursive.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
         _recursive.Click += async (_, _) => await ScanAsync();
         _status.Margin = new Thickness(0, 10, 0, 8);
         var list = new ScrollViewer { Content = _rows, MaxHeight = 330, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -95,6 +96,7 @@ internal sealed class DuplicatesWindow : Window
             foreach (var file in group.Files)
             {
                 var radio = new RadioButton { GroupName = group.Files[0], IsChecked = file == group.Files[0], Margin = new Thickness(0, 2, 0, 2) };
+                radio.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
                 radio.Content = new TextBlock
                 {
                     Text = $"{System.IO.Path.GetRelativePath(_folder, file)}   ·   {File.GetLastWriteTime(file):d MMM yyyy}",

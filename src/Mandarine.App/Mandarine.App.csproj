@@ -34,6 +34,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- tools/Mandarine.Shots renders the windows for the README. -->
+    <InternalsVisibleTo Include="Mandarine.Shots" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\mandarine.ico" />
   </ItemGroup>
 

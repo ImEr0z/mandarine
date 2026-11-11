@@ -143,7 +143,7 @@ internal sealed class WheelSegment : Button
         }
 
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        // Formats are just their name, big and bold (as on Tangerine); tools get an icon above a smaller label.
+        // Formats are just their name, big and bold; tools get an icon above a smaller label.
         var glyph = _glyph is null ? null : Text(_glyph, (FontFamily)FindResource("IconFont"), 17, FontWeights.Normal, text, dpi);
         var titleSize = glyph is null ? 15 : _title.Length > 9 ? 10.5 : 12;
         var title = Text(_title, (FontFamily)FindResource("TextFont"), titleSize, FontWeights.SemiBold, text, dpi);

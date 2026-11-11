@@ -42,7 +42,8 @@ internal sealed class PdfOrganizerWindow : Window
         SetResourceReference(ForegroundProperty, "Text.Primary");
         SetResourceReference(FontFamilyProperty, "TextFont");
 
-        var save = new Button { Content = "Enregistrer une copie", Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 14, 0) };
+        var save = DialogStyle.Button("Enregistrer une copie", primary: true);
+        save.Margin = new Thickness(0, 0, 14, 0);
         save.Click += (_, _) => Save();
         var bar = new DockPanel { Margin = new Thickness(12, 10, 12, 10) };
         DockPanel.SetDock(save, Dock.Left);

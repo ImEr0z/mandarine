@@ -53,6 +53,8 @@ internal sealed class ImageAdjustWindow : Window
         panel.Children.Add(SliderRow("a", "Angle (°)", -45, 45, 0.1));
         _crop.Content = new TextBlock { Text = "Rogner les coins vides après rotation", TextWrapping = TextWrapping.Wrap, FontSize = 13.5 };
         _crop.Margin = new Thickness(0, 6, 0, 2);
+        _crop.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
+        _showGrid.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
         _showGrid.Content = new TextBlock { Text = "Afficher la grille d'alignement", FontSize = 13.5 };
         _showGrid.Margin = new Thickness(0, 6, 0, 0);
         _crop.Click += (_, _) => Schedule();

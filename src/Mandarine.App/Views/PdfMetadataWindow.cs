@@ -73,6 +73,8 @@ internal sealed class PdfMetadataWindow : Window
         _stripHidden.Content = new TextBlock { Text = "Effacer le programme, les dates et les métadonnées d'origine (avant de partager)", TextWrapping = TextWrapping.Wrap, FontSize = 13.5 };
         _stripBookmarks.Content = new TextBlock { Text = "Retirer les marque-pages", FontSize = 13.5 };
         _stripHidden.Margin = new Thickness(0, 14, 0, 4);
+        _stripHidden.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
+        _stripBookmarks.SetResourceReference(Control.ForegroundProperty, "Text.Primary");
         _stripBookmarks.IsEnabled = info.Bookmarks > 0;
         _stripBookmarks.Margin = new Thickness(0, 4, 0, 0);
 

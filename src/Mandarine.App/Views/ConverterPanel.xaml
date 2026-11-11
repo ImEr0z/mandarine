@@ -108,7 +108,7 @@
     <Grid.RenderTransform>
         <ScaleTransform x:Name="RootScale" />
     </Grid.RenderTransform>
-    <!-- Format wheel (Tangerine style): shown instead of the card while choosing an action. -->
+    <!-- Format wheel: shown instead of the card while choosing an action. -->
     <StackPanel x:Name="WheelHost" Visibility="Collapsed" Margin="10" HorizontalAlignment="Center">
         <Grid Width="340" Height="340">
             <Ellipse Fill="{DynamicResource Panel.Background}" Stroke="{DynamicResource Panel.Border}" StrokeThickness="1"

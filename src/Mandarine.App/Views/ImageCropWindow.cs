@@ -53,9 +53,9 @@ internal sealed class ImageCropWindow : Window
         SetResourceReference(ForegroundProperty, "Text.Primary");
         SetResourceReference(FontFamilyProperty, "TextFont");
 
-        var save = new Button { Content = "Enregistrer", Padding = new Thickness(16, 6, 16, 6), IsDefault = true };
+        var save = DialogStyle.Button("Enregistrer", primary: true, isDefault: true);
         save.Click += (_, _) => Save();
-        var reset = new Button { Content = "Tout l'image", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
+        var reset = DialogStyle.Button("Tout l'image", primary: false);
         reset.Click += (_, _) => SetSelection(new Rect(0, 0, _source.PixelWidth, _source.PixelHeight));
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Children = { reset, save } };
         var row2 = new DockPanel();

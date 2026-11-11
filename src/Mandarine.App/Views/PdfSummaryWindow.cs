@@ -27,7 +27,8 @@ internal sealed class PdfSummaryWindow : Window
         SetResourceReference(ForegroundProperty, "Text.Primary");
         SetResourceReference(FontFamilyProperty, "TextFont");
 
-        var copy = new Button { Content = "Copier", Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(0, 0, 8, 0), IsEnabled = false };
+        var copy = DialogStyle.Button("Copier", primary: true);
+        copy.IsEnabled = false;
         copy.Click += (_, _) =>
         {
             try
@@ -40,7 +41,7 @@ internal sealed class PdfSummaryWindow : Window
                 copy.Content = "Réessayer";
             }
         };
-        var close = new Button { Content = "Fermer", Padding = new Thickness(14, 5, 14, 5), IsCancel = true };
+        var close = DialogStyle.Button("Fermer", primary: false, isCancel: true);
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(12, 8, 12, 10), Children = { copy, close } };
 
         _list.Children.Add(new TextBlock { Text = "Lecture du document…", Opacity = 0.7 });

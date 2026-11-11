@@ -7,7 +7,7 @@ namespace Mandarine.App.Services;
 
 public enum TriggerMode
 {
-    /// <summary>Hold Shift while dragging (Tangerine's gesture). In Explorer, Shift also means "move".</summary>
+    /// <summary>Hold Shift while dragging. In Explorer, Shift also means "move".</summary>
     Shift,
 
     /// <summary>Hold Alt while dragging.</summary>
@@ -61,7 +61,7 @@ public sealed class AppSettings
     /// <summary>Version whose "Nouveautés" window was already shown; it opens once per new version.</summary>
     public string? LastSeenNews { get; set; }
 
-    /// <summary>Formats on a wheel (like Tangerine) or as a list.</summary>
+    /// <summary>Formats on a wheel or as a list.</summary>
     public PanelStyle Style { get; set; } = PanelStyle.Wheel;
 
     /// <summary>Soft sounds when moving over the wheel and when a conversion ends.</summary>
