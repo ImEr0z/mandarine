@@ -10,7 +10,8 @@ internal static class History
     private const int Capacity = 40;
     private const int PerConversion = 10;
 
-    private static readonly string FilePath =
+    /// <summary>Where the list is kept; the screenshot tool points it at a throw-away file.</summary>
+    internal static string FilePath { get; set; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mandarine", "history.json");
 
     public static void Add(IReadOnlyList<string> outputs)

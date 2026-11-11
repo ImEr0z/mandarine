@@ -129,6 +129,8 @@ internal static class Program
         yield return ("wheel", () => Wheel(s));
         yield return ("toast", () => Toast());
         yield return ("settings", () => Settings());
+        yield return ("settings-kind", () => SettingsKind());
+        yield return ("history", () => HistoryShot(s));
         yield return ("rename", () => Rename(s));
         yield return ("sort", () => Still("sort", new FolderSortWindow(s.Folder), 900));
         yield return ("duplicates", () => Still("duplicates", new DuplicatesWindow(s.Duplicates), 2500));
@@ -189,6 +191,43 @@ internal static class Program
         var window = new SettingsWindow(new AppSettings(), _ => Task.FromResult(true), _ => { });
         Reveal(window, 3500);
         Save("settings", OnSolid(Render(Root(window)), Color.FromRgb(0x2B, 0x2B, 0x2E)), chrome: true);
+        window.Close();
+    }
+
+    /// <summary>The "Réglages par type de fichier" card: scrolled into view, with the PDF type picked and some values set.</summary>
+    private static void SettingsKind()
+    {
+        var window = new SettingsWindow(new AppSettings(), _ => Task.FromResult(true), _ => { });
+        Reveal(window, 2500);
+        Field<ComboBox>(window, "KindBox").SelectedIndex = 0; // Images: folder, quality, size, name
+        Field<TextBox>(window, "KindQualityBox").Text = "80";
+        Field<TextBox>(window, "KindSizeBox").Text = "1920";
+        Field<TextBox>(window, "KindSuffixBox").Text = "_web";
+        Pump(300);
+        Field<TextBox>(window, "KindSuffixBox").BringIntoView();
+        Pump(600);
+        Save("settings-kind", OnSolid(Render(Root(window)), Color.FromRgb(0x2B, 0x2B, 0x2E)), chrome: true);
+        window.Close();
+    }
+
+    /// <summary>"Conversions récentes": a few outputs with their thumbnails (a throw-away history file, never the real one).</summary>
+    private static void HistoryShot(Samples s)
+    {
+        History.FilePath = Path.Combine(_work, "history.json");
+        // Real pictures (so the thumbnails are real), shown through the spare drive letter: no user name in the path.
+        var straightened = Path.Combine(_work, "photo-penchee - redressée.png");
+        var compressed = Path.Combine(_work, "paysage - compressée.png");
+        File.Copy(s.Tilted, straightened, overwrite: true);
+        File.Copy(s.Landscape, compressed, overwrite: true);
+        string Shown(string path) => _drive.Length > 2 && _drive[1] == ':' ? path.Replace(_work, _drive[..2], StringComparison.OrdinalIgnoreCase) : path;
+        foreach (var path in new[] { s.Tilted, s.Landscape, straightened, compressed })
+        {
+            History.Add([Shown(path)]);
+        }
+
+        var window = new HistoryWindow();
+        Reveal(window, 2500);
+        Save("history", Render(Root(window)), chrome: false);
         window.Close();
     }
 

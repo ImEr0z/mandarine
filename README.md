@@ -37,7 +37,7 @@
 | Un geste, un choix, c'est converti. Mandarine reste discrète dans la zone de notification et ne consomme presque rien au repos. | Tout se passe sur votre PC. Aucun fichier n'est envoyé en ligne, pas de compte, pas de publicité. | Open source (licence MIT), sans limite d'usage ni abonnement. |
 
 **Ce que vous pouvez faire sans installer d'autre logiciel :**
-convertir des images, des PDF, des données et des archives · signer, caviarder, filigraner et réorganiser un PDF · recadrer, annoter, flouter et retoucher une photo · renommer en masse, trier un dossier et trouver les doublons · lire le texte d'une image (OCR).
+convertir des images, des PDF, des données et des archives · signer, caviarder, filigraner et réorganiser un PDF · recadrer, annoter, flouter et retoucher une photo · renommer en masse, trier un dossier et trouver les doublons · lire le texte d'une image (OCR) et rendre un PDF scanné cherchable.
 
 ## Sommaire
 
@@ -46,7 +46,7 @@ convertir des images, des PDF, des données et des archives · signer, caviarder
 - [Ce que Mandarine sait faire](#ce-que-mandarine-sait-faire)
   - [Les images](#les-images) · [Les PDF](#les-pdf) · [Les fichiers et les dossiers](#les-fichiers-et-les-dossiers) · [Les outils de Windows](#les-outils-de-windows)
 - [Tous les formats](#tous-les-formats)
-- [Réglages](#réglages)
+- [Réglages](#réglages) · [Retrouver vos conversions](#retrouver-vos-conversions)
 - [Vos fichiers restent chez vous](#vos-fichiers-restent-chez-vous)
 - [Questions fréquentes](#questions-fréquentes)
 - [Développement](#développement)
@@ -136,6 +136,12 @@ Convertissez entre **PNG, JPG, WebP, AVIF, GIF, BMP, TIFF, ICO, JXL, PDF**, et l
 
 Tracez des rectangles sur ce qui doit disparaître (nom, adresse, montant…). Mandarine reconstruit les pages concernées **à partir d'une image où le noir est déjà peint** : le texte caché n'existe plus dans le fichier, on ne peut ni le copier ni le retrouver. Les autres pages restent intactes. Une pièce d'identité à envoyer ? Caviardez, puis ajoutez un **filigrane**.
 
+#### 🔍 PDF cherchable
+
+Un PDF scanné, ou une photo de page, est une simple image : impossible d'y chercher un mot (<kbd>Ctrl</kbd>+<kbd>F</kbd>) ou de copier un passage. « PDF cherchable » lit le texte avec la reconnaissance de Windows, sur votre PC, puis l'ajoute **invisible** par-dessus l'image. Le document garde exactement le même aspect, mais il se cherche, se sélectionne et se copie. Le résultat est une copie « nom - cherchable.pdf » ; l'original ne bouge pas. Il faut une langue de reconnaissance installée dans Windows (Paramètres › Heure et langue › Langue).
+
+**Réparer** réécrit un PDF endommagé en copie propre (« nom - réparé.pdf »). Si ses pages ne sont plus lisibles telles quelles, elles sont redessinées en images : le texte n'est alors plus du texte, mais « PDF cherchable » le rend de nouveau cherchable.
+
 #### Tout le reste
 
 <table>
@@ -188,7 +194,7 @@ Tracez des rectangles sur ce qui doit disparaître (nom, adresse, montant…). M
 
 ### Les outils de Windows
 
-Mandarine s'appuie sur ce que Windows sait déjà faire : **Extraire le texte (OCR)** d'une image ou d'un PDF scanné, **Copier le texte**, **Copier l'image**, **Mettre en fond d'écran**, **Imprimer**. Le texte est reconnu par Windows, sur votre PC.
+Mandarine s'appuie sur ce que Windows sait déjà faire : **Extraire le texte (OCR)** d'une image ou d'un PDF scanné, **PDF cherchable** (le texte reconnu est ajouté, invisible, au PDF), **Copier le texte**, **Copier l'image**, **Mettre en fond d'écran**, **Imprimer**. Le texte est reconnu par Windows, sur votre PC.
 
 ### Données et texte
 
@@ -208,7 +214,7 @@ Convertissez **JSON ↔ YAML ↔ XML ↔ CSV/TSV** et **Markdown ↔ HTML**. Un 
 | CSV, TSV | JSON, CSV ↔ TSV | |
 | Archive (ZIP, TAR, TAR.GZ, GZ, 7Z, RAR) | | Extraire |
 | Plusieurs images et/ou PDF | **Fusionner en PDF** | |
-| Image ou PDF | | Extraire le texte (OCR), Copier le texte, Copier l'image, Fond d'écran, Imprimer |
+| Image ou PDF | | Extraire le texte (OCR), PDF cherchable, Copier le texte, Copier l'image, Fond d'écran, Imprimer |
 | Plusieurs fichiers | | Renommer en masse |
 | Dossier | | Trier, Trouver les doublons |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
@@ -232,10 +238,16 @@ Icône de la zone de notification (clic gauche ou droit) › **Paramètres**. **
 - **Raccourci clavier** : cliquez sur « Modifier » puis tapez la combinaison. <kbd>Échap</kbd> annule, la corbeille supprime le raccourci.
 - **Affichage** : roue de formats ou liste. **Sons** : un son de survol et un de fin de conversion (*Doux*, *Verre*, *Goutte*, *Soie* ou *Aucun*), synthétisés par Mandarine.
 - **Fichiers créés** : à côté de l'original ou dans un dossier fixe ; **qualité** JPEG/WebP/AVIF.
-- **Réglages par type de fichier** (images, PDF, autres) : dossier de destination, qualité, taille maximale des images, résolution (DPI) des pages PDF et texte ajouté au nom (« _web »). Ce qui est vide ou à 0 reprend le réglage général.
+- **Réglages par type de fichier** (images, PDF, autres) : dossier de destination, qualité, taille maximale des images, résolution (DPI) des pages PDF et texte ajouté au nom (« _web » donne « photo_web.png »). Ce qui est vide ou à 0 reprend le réglage général.
 - **Windows** : lancement à l'ouverture de session (discret), intégration au clic droit et à « Envoyer vers ».
 
-Dans le menu de l'icône : **Conversions récentes** (les derniers fichiers créés, avec une miniature ; un clic les ouvre).
+<p align="center"><img src="docs/images/settings-kind.png" alt="Réglages par type de fichier : images, qualité 80, taille maximale 1920, ajout _web au nom" width="420"></p>
+
+### Retrouver vos conversions
+
+Menu de l'icône › **Conversions récentes** : les 40 derniers fichiers créés par Mandarine, du plus récent au plus ancien, avec une miniature. Un clic ouvre le fichier, le petit dossier l'affiche dans l'Explorateur. La liste est gardée entre deux sessions, et les fichiers supprimés ou déplacés en disparaissent. Les miniatures sont celles de l'Explorateur.
+
+<p align="center"><img src="docs/images/history.png" alt="Fenêtre des conversions récentes avec une miniature par fichier" width="420"></p>
 
 ## Vos fichiers restent chez vous
 
