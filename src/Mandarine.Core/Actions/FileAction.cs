@@ -29,6 +29,9 @@ public abstract class FileAction
 
     public virtual int MinInputs => 1;
 
+    /// <summary>True when the action opens its own window and must not run in the conversion worker process.</summary>
+    public virtual bool InProcess => false;
+
     /// <summary>Extension produced by a conversion, used to hide no-op conversions (PNG to PNG).</summary>
     public virtual string? TargetExtension => null;
 

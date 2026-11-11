@@ -16,6 +16,9 @@ public enum TriggerMode
     /// <summary>Hold Ctrl while dragging. In Explorer, Ctrl also means "copy", which is harmless.</summary>
     Ctrl,
 
+    /// <summary>Tap Shift on its own with files selected in Explorer or on the desktop: no drag at all.</summary>
+    ShiftTap,
+
     /// <summary>Shake the file left and right while dragging, no modifier needed.</summary>
     Shake,
 
@@ -60,6 +63,10 @@ public sealed class AppSettings
 
     /// <summary>Soft sounds when moving over the wheel and when a conversion ends.</summary>
     public bool Sounds { get; set; } = true;
+
+    public SoundTheme HoverSound { get; set; } = SoundTheme.Soft;
+
+    public SoundTheme DoneSound { get; set; } = SoundTheme.Soft;
 
     /// <summary>Shortcut that opens the wheel for the files selected in Explorer or on the desktop (MOD_* flags).</summary>
     public uint HotkeyModifiers { get; set; } = Hotkey.Control | Hotkey.Shift;

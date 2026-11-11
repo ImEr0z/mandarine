@@ -42,6 +42,11 @@ internal static class ConversionWorker
         FileAction action, IReadOnlyList<string> files, ActionContext context, IProgress<ActionProgress> progress, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (action.InProcess)
+        {
+            return await action.RunAsync(files, context, progress, token);
+        }
+
         var request = new WorkerRequest(action.Id, files, context.OutputDirectory, context.Quality, new()
         {
             [ExternalTool.Ffmpeg] = context.Tools.Find(ExternalTool.Ffmpeg),

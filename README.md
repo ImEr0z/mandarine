@@ -10,11 +10,14 @@ Tout se passe sur votre PC, rien n'est envoyé en ligne.</p>
 
 ## Fonctionnement
 
-Mandarine tourne discrètement dans la zone de notification (un clic sur son icône ouvre le menu : paramètres, suspendre le geste, quitter). Les formats s'affichent sur une roue, comme sur Tangerine : survolez ou cliquez un secteur, appuyez sur <kbd>Maj</kbd> (même pendant le glisser : relâchez puis réappuyez) ou cliquez au centre pour passer à la page suivante, ou tapez 1 à 8 pour choisir un secteur. Toutes les actions tiennent sur la roue, huit par page. Trois façons de l'ouvrir :
+Mandarine tourne discrètement dans la zone de notification (un clic sur son icône ouvre le menu : paramètres, mise à jour, suspendre le geste, quitter). Les formats s'affichent sur une roue : survolez ou cliquez un secteur, appuyez sur <kbd>Maj</kbd> (même pendant le glisser, et même si la roue n'a pas le focus) ou cliquez au centre pour passer à la page suivante, ou tapez 1 à 8 pour choisir un secteur. Toutes les actions tiennent sur la roue, huit par page. La roue s'ouvre et se ferme avec une courte animation ; <kbd>Échap</kbd> ou un clic en dehors la ferme.
 
-1. **Le geste.** Commencez à faire glisser un fichier depuis l'Explorateur ou le Bureau, puis appuyez sur <kbd>Maj</kbd> : un menu de formats apparaît sous le curseur. Relâchez le fichier sur le format voulu, ou sur l'en-tête du menu pour le garder ouvert et choisir au clic. Appuyer sur <kbd>Maj</kbd> *avant* de cliquer étendrait la sélection de l'Explorateur : la touche se presse une fois le glisser commencé.
-2. **Le clic droit.** « Convertir avec Mandarine » dans le menu contextuel de l'Explorateur (sous Windows 11 : « Afficher plus d'options »), ou « Envoyer vers > Mandarine ». Fonctionne avec une sélection de plusieurs fichiers.
-3. **Le raccourci.** Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Espace</kbd> : la roue s'ouvre sous la souris. Le raccourci se change dans les paramètres.
+Quatre façons de l'ouvrir :
+
+1. **Le geste.** Commencez à faire glisser un fichier depuis l'Explorateur ou le Bureau, puis appuyez sur <kbd>Maj</kbd> : un menu de formats apparaît sous le curseur. Relâchez le fichier sur le format voulu, ou sur l'en-tête du menu pour le garder ouvert et choisir au clic. Appuyer sur <kbd>Maj</kbd> *avant* de cliquer étendrait la sélection de l'Explorateur : la touche se presse une fois le glisser commencé (la roue s'ouvre aussi si la souris reste immobile).
+2. **Un appui sur Maj, sans glisser.** Réglage « Appuyer sur Maj » : sélectionnez des fichiers dans l'Explorateur ou sur le Bureau et tapez sur <kbd>Maj</kbd> seule. La roue s'ouvre centrée sur le fichier. <kbd>Maj</kbd>+lettre, <kbd>Maj</kbd>+clic ou <kbd>Maj</kbd> maintenue ne déclenchent rien, ni un appui sans fichier sélectionné.
+3. **Le clic droit.** « Convertir avec Mandarine » dans le menu contextuel de l'Explorateur (sous Windows 11 : « Afficher plus d'options »), ou « Envoyer vers > Mandarine ». Fonctionne avec une sélection de plusieurs fichiers.
+4. **Le raccourci.** Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis appuyez sur <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Espace</kbd> : la roue s'ouvre centrée sur le fichier sélectionné (sous la souris si son icône reste introuvable). Le raccourci se change dans les paramètres.
 
 Les fichiers créés sont placés à côté de l'original (ou dans un dossier choisi). Un fichier existant n'est jamais écrasé : `photo.png` devient `photo (2).png`. Les fichiers déposés sont toujours copiés, jamais déplacés.
 
@@ -23,7 +26,7 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
 | Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64 |
-| PDF | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter les pages |
+| PDF | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter les pages, Modifier le texte (fenêtre d'édition : cliquer une ligne et taper, ajouter du texte) |
 | Markdown | HTML | |
 | HTML | Markdown | |
 | JSON | YAML, CSV, XML | |
@@ -56,18 +59,20 @@ L'exécutable n'est pas signé : Windows SmartScreen affichera un avertissement 
 
 ## Paramètres
 
-Clic droit sur l'icône de notification > **Paramètres** :
+Icône de notification (clic gauche ou droit) > **Paramètres**. La fenêtre est organisée en sections ; **chaque changement est enregistré et appliqué tout de suite**, sans bouton à valider.
 
-- **Geste** : <kbd>Maj</kbd> (comme Tangerine), <kbd>Ctrl</kbd>, <kbd>Alt</kbd>, *secouer le fichier*, ou désactivé. Dans l'Explorateur, Maj+glisser sert aussi à *déplacer* des fichiers : si c'est un réflexe pour vous, choisissez « secouer » (trois allers-retours rapides pendant le glissement).
-- **Raccourci clavier** de la roue (ou aucun), et **affichage** en roue ou en liste.
-- **Source** : réagir seulement aux glissers depuis l'Explorateur et le Bureau (par défaut), ou depuis n'importe quelle application.
-- **Destination** : à côté de l'original ou dans un dossier fixe.
-- **Qualité** JPEG/WebP/AVIF, lancement au démarrage, intégration au clic droit, sons d'interface.
+- **Ouvrir le menu de conversion**
+  - *Geste de glisser-déposer* : glisser + <kbd>Maj</kbd>, <kbd>Alt</kbd> ou <kbd>Ctrl</kbd>, **appuyer sur <kbd>Maj</kbd> (sans glisser)**, *secouer le fichier*, ou désactivé. Dans l'Explorateur, Maj+glisser sert aussi à *déplacer* des fichiers : si c'est un réflexe pour vous, préférez « Appuyer sur Maj » ou « Secouer » (trois allers-retours rapides).
+  - *Limiter à l'Explorateur et au Bureau* : ignore les fichiers glissés depuis les autres applications (activé par défaut).
+  - *Raccourci clavier* : cliquez sur « Modifier » puis tapez la combinaison (au moins <kbd>Ctrl</kbd>, <kbd>Alt</kbd> ou <kbd>Win</kbd>, ou une touche F1 à F24) ; <kbd>Échap</kbd> annule, la corbeille supprime le raccourci.
+- **Affichage** : roue de formats ou liste (aperçu sur des cartes). **Sons d'interface** : un son de survol et un son de fin de conversion, au choix parmi *Doux*, *Verre*, *Goutte*, *Soie* ou *Aucun*, avec un bouton ▶ pour les écouter. Les sons sont synthétisés par Mandarine, rien n'est à installer.
+- **Fichiers créés** : à côté de l'original ou dans un dossier fixe ; **qualité** JPEG/WebP/AVIF.
+- **Windows** : lancement à l'ouverture de session (réduit dans la zone de notification, sans message), intégration au clic droit et à « Envoyer vers ».
 
 ## Différences avec Tangerine
 
 - Gratuit, open source, sans limite d'usage.
-- Sur Windows, <kbd>Maj</kbd> pendant un glisser signifie « déplacer » : d'où le geste alternatif « secouer » et la touche <kbd>Alt</kbd>.
+- Sur Windows, <kbd>Maj</kbd> pendant un glisser signifie « déplacer » : d'où les gestes alternatifs « Appuyer sur Maj » (sans glisser), « secouer » et la touche <kbd>Alt</kbd>.
 - Sortie HEIC non prise en charge (l'encodeur HEVC est soumis à brevets) ; la lecture HEIC fonctionne.
 - Pas encore d'équivalent à certains outils avancés de Tangerine (voir la feuille de route).
 
@@ -101,11 +106,15 @@ La CI GitHub Actions compile, teste et publie `Mandarine-win-x64.zip` et `Mandar
 
 ### Comment marche le geste
 
-Un hook souris bas niveau (`WH_MOUSE_LL`, sur un thread dédié pour ne jamais ralentir le curseur) repère un glisser qui démarre dans l'Explorateur avec la touche choisie enfoncée. Mandarine ouvre alors sous le curseur une fenêtre quasi transparente, enregistrée comme cible de dépôt OLE. Dès qu'un fichier la survole, elle lit la liste des fichiers glissés, affiche les formats compatibles et devient visible. Si le bouton est relâché ailleurs, elle se referme.
+Un hook souris bas niveau (`WH_MOUSE_LL`, sur un thread dédié pour ne jamais ralentir le curseur) repère un glisser qui démarre dans l'Explorateur avec la touche choisie enfoncée. Pendant le glisser, une courte surveillance (30 ms, seulement une fois la souris bougée) détecte une touche pressée sans que la souris bouge. Mandarine ouvre alors sous le curseur une fenêtre quasi transparente, enregistrée comme cible de dépôt OLE. Dès qu'un fichier la survole, elle lit la liste des fichiers glissés, affiche les formats compatibles et devient visible. Si le bouton est relâché ailleurs, elle se referme.
+
+Un hook clavier bas niveau (`WH_KEYBOARD_LL`, également sur son propre thread) ne lit que des codes de touches, jamais le texte, et ne bloque aucune touche. Il sert à l'appui sur <kbd>Maj</kbd> seul (appuyé et relâché en moins de 0,4 s, sans autre touche ni clic), à tourner les pages et à fermer la roue avec <kbd>Échap</kbd> quand elle est ouverte pendant un glisser et n'a donc pas le focus.
+
+Pour centrer la roue sur le fichier, la position de l'icône est lue par UI Automation dans l'Explorateur, ou par les messages de la liste d'icônes du Bureau. Cette recherche se fait hors du thread de l'interface et est limitée à une demi-seconde : au-delà, la roue s'ouvre sous la souris.
 
 ## Statut et feuille de route
 
-Version 0.1. Le moteur de conversion est couvert par 82 tests automatisés. L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
+Version 0.5. Le moteur de conversion est couvert par plus de 90 tests automatisés (certains sont ignorés si FFmpeg ou LibreOffice sont absents). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
 
 Pistes :
 

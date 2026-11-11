@@ -33,6 +33,15 @@ public static class Raster
         }
     }
 
+    public static byte[] PdfPageToPng(string path, int page, int dpi)
+    {
+        using var stream = new MemoryStream();
+        var options = new PDFtoImage.RenderOptions(Dpi: dpi, WithAnnotations: true, WithFormFill: true,
+            BackgroundColor: SkiaSharp.SKColors.White);
+        PDFtoImage.Conversion.SavePng(stream, File.ReadAllBytes(path), page, options: options);
+        return stream.ToArray();
+    }
+
     public static bool IsImage(string path) => FileKinds.Detect(path) == FileKind.Image;
 
     public static bool IsPdf(string path) => FileKinds.Detect(path) == FileKind.Pdf;

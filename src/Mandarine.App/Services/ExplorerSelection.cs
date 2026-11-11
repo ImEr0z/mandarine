@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows.Automation;
 using Mandarine.App.Interop;
 
 namespace Mandarine.App.Services;
@@ -58,6 +59,55 @@ internal static class ExplorerSelection
         }
 
         return [];
+    }
+
+    /// <summary>
+    /// Center of the first selected icon of the active Explorer window or the desktop, so the wheel opens on the
+    /// file itself; null when it cannot be found (the caller then uses the mouse position).
+    /// </summary>
+    public static async Task<NativeMethods.POINT?> SelectionAnchorAsync()
+    {
+        // Off the UI thread and time-boxed: a slow Explorer must never freeze Mandarine, the wheel then opens under the mouse.
+        var foreground = NativeMethods.GetAncestor(NativeMethods.GetForegroundWindow(), NativeMethods.GA_ROOT);
+        try
+        {
+            return await Task.Run(() => SelectionAnchor(foreground)).WaitAsync(TimeSpan.FromMilliseconds(500));
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
+    }
+
+    private static NativeMethods.POINT? SelectionAnchor(IntPtr foreground)
+    {
+        try
+        {
+            if (NativeMethods.ClassNameOf(foreground) is "Progman" or "WorkerW")
+            {
+                return DesktopIcons.SelectedIconCenter();
+            }
+
+            var window = AutomationElement.FromHandle(foreground);
+            var selected = new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(SelectionItemPattern.IsSelectedProperty, true));
+            foreach (AutomationElement item in window.FindAll(TreeScope.Descendants, selected))
+            {
+                var bounds = item.Current.BoundingRectangle;
+                if (!bounds.IsEmpty && bounds.Width > 0 && bounds.Height > 0)
+                {
+                    return new NativeMethods.POINT((int)(bounds.X + bounds.Width / 2), (int)(bounds.Y + bounds.Height / 2));
+                }
+            }
+        }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or COMException
+                                       or System.ComponentModel.Win32Exception)
+        {
+            ErrorLog.Write(ex);
+        }
+
+        return null;
     }
 
     private static IReadOnlyList<string> Selected(dynamic? document)

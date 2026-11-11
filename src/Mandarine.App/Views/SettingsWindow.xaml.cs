@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Mandarine.App.Services;
 using Mandarine.Core;
 using Mandarine.Core.Actions;
@@ -13,14 +14,20 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly Func<ExternalTool, Task<bool>> _installTool;
+    private readonly Action<AppSettings> _applied;
+    private readonly System.Windows.Threading.DispatcherTimer _saveTimer;
+    private bool _loading = true;
     private uint _hotkeyModifiers;
     private int _hotkeyKey;
 
-    internal SettingsWindow(AppSettings settings, Func<ExternalTool, Task<bool>> installTool)
+    internal SettingsWindow(AppSettings settings, Func<ExternalTool, Task<bool>> installTool, Action<AppSettings> applied)
     {
         InitializeComponent();
         _settings = settings.Clone();
         _installTool = installTool;
+        _applied = applied;
+        _saveTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _saveTimer.Tick += (_, _) => Commit();
 
         TriggerBox.SelectedItem = TriggerBox.Items.Cast<ComboBoxItem>()
             .First(i => (string)i.Tag == _settings.Trigger.ToString());
@@ -35,29 +42,33 @@ public partial class SettingsWindow : Window
         WheelRadio.IsChecked = _settings.Style == PanelStyle.Wheel;
         ListRadio.IsChecked = !WheelRadio.IsChecked;
         SoundsBox.IsChecked = _settings.Sounds;
+        SelectSound(HoverSoundBox, _settings.HoverSound);
+        SelectSound(DoneSoundBox, _settings.DoneSound);
         _hotkeyModifiers = _settings.HotkeyModifiers;
         _hotkeyKey = _settings.HotkeyKey;
-        HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
+        ShowHotkey();
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = $"Mandarine {version?.ToString(3)} · inspiré de Tangerine pour Mac";
+        VersionText.Text = $"Mandarine, version {version?.ToString(3)}";
         RefreshTools();
+        _loading = false;
     }
-
-    /// <summary>The validated settings, set when the user saves.</summary>
-    internal AppSettings? Result { get; private set; }
 
     private void OnTriggerChanged(object sender, SelectionChangedEventArgs e)
     {
+        QueueSave();
         TriggerHint.Text = SelectedTrigger switch
         {
-            TriggerMode.Shift => "Comme Tangerine. Dans l'Explorateur, Maj+glisser sert aussi à déplacer des fichiers : "
-                + "si vous le faites souvent, préférez « secouer ».",
+            TriggerMode.Shift => "Dans l'Explorateur, Maj+glisser sert aussi à déplacer des fichiers : "
+                + "si vous le faites souvent, préférez « Secouer ».",
             TriggerMode.Alt => "Alt+glisser sert aussi à créer des raccourcis dans l'Explorateur.",
             TriggerMode.Ctrl => "Ctrl+glisser sert aussi à copier dans l'Explorateur : sans risque, l'original ne bouge jamais.",
-            TriggerMode.Shake => "Aucune touche à retenir : trois allers-retours rapides pendant le glissement.",
+            TriggerMode.ShiftTap => "Sélectionnez des fichiers dans l'Explorateur ou sur le Bureau, puis tapez sur Maj, seule. "
+                + "Marche aussi en glissant un fichier : appuyez sur Maj pendant le glissement.",
+            TriggerMode.Shake => "Trois allers-retours rapides pendant le glissement, sans touche à retenir.",
             _ => "Le menu reste accessible par clic droit, « Envoyer vers » et l'icône de notification.",
         };
+        ExplorerOnlyRow.IsEnabled = SelectedTrigger != TriggerMode.Disabled;
     }
 
     private TriggerMode SelectedTrigger =>
@@ -65,28 +76,84 @@ public partial class SettingsWindow : Window
 
     // ---- Shortcut recorder (keys are read only while this box has focus) ----
 
-    private void OnHotkeyFocus(object sender, RoutedEventArgs e) => HotkeyBox.Text = "Appuyez sur la combinaison…";
+    private bool _recording;
 
-    private void OnHotkeyBlur(object sender, RoutedEventArgs e) => HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
+    private void OnHotkeyRecord(object sender, RoutedEventArgs e)
+    {
+        _recording = true;
+        HotkeyRecord.Content = "Appuyez…";
+        ShowHotkey();
+    }
+
+    private void OnHotkeyBlur(object sender, RoutedEventArgs e) => StopRecording();
+
+    private void StopRecording()
+    {
+        _recording = false;
+        HotkeyRecord.Content = "Modifier";
+        ShowHotkey();
+    }
 
     private void OnHotkeyClear(object sender, RoutedEventArgs e)
     {
         _hotkeyModifiers = 0;
         _hotkeyKey = 0;
-        HotkeyBox.Text = Hotkey.Describe(0, 0);
+        StopRecording();
+        QueueSave();
     }
 
-    private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
+    /// <summary>Shows the shortcut as one key cap per key, or a hint while recording.</summary>
+    private void ShowHotkey(string? message = null)
     {
+        HotkeyChips.Children.Clear();
+        var parts = message is not null ? new[] { message }
+            : _recording ? new[] { "Appuyez sur les touches…" }
+            : _hotkeyKey == 0 ? new[] { "Aucun" }
+            : Hotkey.Describe(_hotkeyModifiers, _hotkeyKey).Split(" + ");
+        var isKeys = message is null && !_recording && _hotkeyKey != 0;
+        foreach (var part in parts)
+        {
+            var text = new TextBlock { Text = part, FontWeight = isKeys ? FontWeights.SemiBold : FontWeights.Normal };
+            if (!isKeys)
+            {
+                text.Opacity = 0.72;
+                HotkeyChips.Children.Add(text);
+                continue;
+            }
+
+            HotkeyChips.Children.Add(new Border
+            {
+                Child = text,
+                Background = (Brush)FindResource("ChipFill"),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(7, 2, 7, 2),
+                Margin = new Thickness(0, 0, 4, 0),
+            });
+        }
+    }
+
+    private void OnWindowKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!_recording)
+        {
+            return;
+        }
+
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key is Key.Tab && Keyboard.Modifiers == ModifierKeys.None)
         {
-            return; // keep keyboard navigation out of the box
+            return; // keep keyboard navigation working
         }
 
         e.Handled = true;
+        if (key == Key.Escape)
+        {
+            StopRecording();
+            return;
+        }
+
         if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift
-            or Key.LWin or Key.RWin or Key.Escape)
+            or Key.LWin or Key.RWin)
         {
             return;
         }
@@ -102,13 +169,14 @@ public partial class SettingsWindow : Window
         var isFunctionKey = key is >= Key.F1 and <= Key.F24;
         if ((modifiers & (Hotkey.Control | Hotkey.Alt | Hotkey.Win)) == 0 && !isFunctionKey)
         {
-            HotkeyBox.Text = "Ajoutez Ctrl, Alt ou Win (ou une touche F1 à F24)";
+            ShowHotkey("Ajoutez Ctrl, Alt ou Win (ou F1 à F24)");
             return;
         }
 
         _hotkeyModifiers = modifiers;
         _hotkeyKey = KeyInterop.VirtualKeyFromKey(key);
-        HotkeyBox.Text = Hotkey.Describe(_hotkeyModifiers, _hotkeyKey);
+        StopRecording();
+        QueueSave();
     }
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)
@@ -123,6 +191,7 @@ public partial class SettingsWindow : Window
         {
             FolderBox.Text = dialog.FolderName;
             FolderRadio.IsChecked = true;
+            QueueSave();
         }
     }
 
@@ -150,6 +219,7 @@ public partial class SettingsWindow : Window
         }
 
         RefreshTools();
+        QueueSave();
     }
 
     private async void OnInstallTool(object sender, RoutedEventArgs e)
@@ -184,27 +254,83 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void OnSave(object sender, RoutedEventArgs e)
+    // ---- Automatic saving: every change is applied after a short pause ----
+
+    private void OnChanged(object sender, RoutedEventArgs e) => QueueSave();
+
+    private void OnQualityChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => QueueSave();
+
+    private void OnFolderTextChanged(object sender, TextChangedEventArgs e) => QueueSave();
+
+    private void OnHoverSoundChanged(object sender, SelectionChangedEventArgs e) => SoundPicked(HoverSoundBox, hover: true);
+
+    private void OnDoneSoundChanged(object sender, SelectionChangedEventArgs e) => SoundPicked(DoneSoundBox, hover: false);
+
+    private void OnPlayHover(object sender, RoutedEventArgs e) => UiSounds.Preview(PickedSound(HoverSoundBox), hover: true);
+
+    private void OnPlayDone(object sender, RoutedEventArgs e) => UiSounds.Preview(PickedSound(DoneSoundBox), hover: false);
+
+    private void SoundPicked(ComboBox box, bool hover)
     {
-        var folder = FolderBox.Text.Trim();
-        if (FolderRadio.IsChecked == true && !Path.IsPathFullyQualified(folder))
+        if (_loading)
         {
-            MessageBox.Show(this, "Choisissez un dossier de destination valide.", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
+        UiSounds.Preview(PickedSound(box), hover);
+        QueueSave();
+    }
+
+    private static SoundTheme PickedSound(ComboBox box) => Enum.Parse<SoundTheme>((string)((ComboBoxItem)box.SelectedItem).Tag);
+
+    private static void SelectSound(ComboBox box, SoundTheme theme) =>
+        box.SelectedItem = box.Items.Cast<ComboBoxItem>().First(i => (string)i.Tag == theme.ToString());
+
+    private void QueueSave()
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        if (_saveTimer.IsEnabled)
+        {
+            Commit(); // flush a change made less than a moment ago
+        }
+    }
+
+    private void Commit()
+    {
+        _saveTimer.Stop();
+        var folder = FolderBox.Text.Trim();
+        if (FolderRadio.IsChecked != true)
+        {
+            _settings.OutputDirectory = null;
+        }
+        else if (Path.IsPathFullyQualified(folder))
+        {
+            _settings.OutputDirectory = folder;
+        } // else: keep the last valid folder while the path is still being typed
+
         _settings.Trigger = SelectedTrigger;
         _settings.ExplorerOnly = ExplorerOnlyBox.IsChecked == true;
-        _settings.OutputDirectory = FolderRadio.IsChecked == true ? folder : null;
         _settings.Quality = (int)QualitySlider.Value;
         _settings.LaunchAtStartup = StartupBox.IsChecked == true;
         _settings.StartMinimized = StartMinimizedBox.IsChecked == true;
         _settings.ExplorerContextMenu = ContextMenuBox.IsChecked == true;
         _settings.Style = WheelRadio.IsChecked == true ? PanelStyle.Wheel : PanelStyle.List;
         _settings.Sounds = SoundsBox.IsChecked == true;
+        _settings.HoverSound = PickedSound(HoverSoundBox);
+        _settings.DoneSound = PickedSound(DoneSoundBox);
         _settings.HotkeyModifiers = _hotkeyModifiers;
         _settings.HotkeyKey = _hotkeyKey;
-        Result = _settings;
-        DialogResult = true;
+        _applied(_settings.Clone());
     }
 }

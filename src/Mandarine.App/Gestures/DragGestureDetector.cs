@@ -21,6 +21,12 @@ internal sealed class DragGestureDetector
     private bool _eligible;
     private bool _triggered;
     private POINT _origin;
+    private POINT _lastPoint;
+    private volatile bool _moved;
+    private readonly object _gate = new();
+    private readonly Timer _poll;
+
+    public DragGestureDetector() => _poll = new Timer(_ => PollModifier(), null, Timeout.Infinite, Timeout.Infinite);
 
     /// <summary>Raised once per drag when the gesture is recognized, with the cursor position.</summary>
     public event Action<POINT>? Triggered;
@@ -36,9 +42,15 @@ internal sealed class DragGestureDetector
 
     public void OnButtonDown(POINT point)
     {
+        lock (_gate)
+        {
+            _triggered = false;
+        }
+
         _buttonDown = true;
-        _triggered = false;
+        _moved = false;
         _origin = point;
+        _lastPoint = point;
         _eligible = _mode != TriggerMode.Disabled && IsEligibleSource(point);
         _shake.Reset(point);
     }
@@ -55,29 +67,70 @@ internal sealed class DragGestureDetector
             return;
         }
 
-        var recognized = _mode switch
+        _lastPoint = point;
+        if (!_moved)
         {
-            TriggerMode.Shift => IsKeyDown(VK_SHIFT),
-            TriggerMode.Alt => IsKeyDown(VK_MENU),
-            TriggerMode.Ctrl => IsKeyDown(VK_CONTROL),
-            TriggerMode.Shake => _shake.Add(point, Environment.TickCount64),
-            _ => false,
-        };
+            // A plain click never gets here: the poll that catches a key pressed mid-drag only runs for real drags.
+            _moved = true;
+            if (_mode is TriggerMode.Shift or TriggerMode.ShiftTap or TriggerMode.Alt or TriggerMode.Ctrl)
+            {
+                _poll.Change(30, 30);
+            }
+        }
 
+        var recognized = _mode == TriggerMode.Shake ? _shake.Add(point, Environment.TickCount64) : ModifierHeld();
         if (recognized)
         {
-            _triggered = true;
-            Triggered?.Invoke(point);
+            TryTrigger(point);
         }
     }
 
     public void OnButtonUp(POINT point)
     {
         _buttonDown = false;
-        if (_triggered)
+        _poll.Change(Timeout.Infinite, Timeout.Infinite);
+        bool wasTriggered;
+        lock (_gate)
         {
+            wasTriggered = _triggered;
             _triggered = false;
+        }
+
+        if (wasTriggered)
+        {
             Released?.Invoke();
+        }
+    }
+
+    private bool ModifierHeld() => _mode switch
+    {
+        TriggerMode.Shift or TriggerMode.ShiftTap => IsKeyDown(VK_SHIFT),
+        TriggerMode.Alt => IsKeyDown(VK_MENU),
+        TriggerMode.Ctrl => IsKeyDown(VK_CONTROL),
+        _ => false,
+    };
+
+    private void TryTrigger(POINT point)
+    {
+        lock (_gate)
+        {
+            if (_triggered || !_buttonDown)
+            {
+                return;
+            }
+
+            _triggered = true;
+        }
+
+        Triggered?.Invoke(point);
+    }
+
+    /// <summary>Lets a key pressed in the middle of a drag work even when the mouse is held still.</summary>
+    private void PollModifier()
+    {
+        if (_buttonDown && _eligible && _moved && !_triggered && ModifierHeld())
+        {
+            TryTrigger(_lastPoint);
         }
     }
 

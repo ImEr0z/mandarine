@@ -104,13 +104,57 @@ public partial class ConverterPanel : Window
         LoadFiles(files, fromDrag: false);
         PlaceAt(cursor, cursorOnHeader: false);
         Show();
+        AnimateIn(0.3);
         if (WheelHost.Visibility == Visibility.Visible)
         {
             UiSounds.PlayOpen();
         }
 
-        Activate();
+        TakeForeground();
         FocusFirstAction();
+    }
+
+    private void TakeForeground()
+    {
+        ForceForeground(new WindowInteropHelper(this).Handle);
+        Activate();
+    }
+
+    private readonly long _shownAt = Environment.TickCount64;
+    private volatile bool _dragOver;
+
+    protected override void OnPreviewDragLeave(DragEventArgs e)
+    {
+        base.OnPreviewDragLeave(e);
+        _dragOver = false;
+    }
+
+    /// <summary>
+    /// Shift pressed while the panel is up but not active (it opened mid-drag, so the keys still go to the
+    /// dragged-from window): turn the page anyway. Ignored right after opening, when that same press opened it.
+    /// </summary>
+    internal void TurnPageFromHook()
+    {
+        // Over the panel, OLE already reports Shift with each DragOver (OnPreviewDragOver): do not turn twice.
+        if (!IsActive && !_dragOver && WheelHost.Visibility == Visibility.Visible && Environment.TickCount64 - _shownAt > 300)
+        {
+            NextPage();
+        }
+    }
+
+    /// <summary>A click outside a picker panel closes it, like any menu (it may never have become the active window).</summary>
+    internal void CloseIfClickedOutside(POINT point)
+    {
+        if (_mode != PanelMode.Picker || _state != State.Actions || _closing)
+        {
+            return;
+        }
+
+        if (GetWindowRect(new WindowInteropHelper(this).Handle, out var rect)
+            && (point.X < rect.Left || point.X >= rect.Right || point.Y < rect.Top || point.Y >= rect.Bottom))
+        {
+            CloseOnce();
+        }
     }
 
     /// <summary>The panel has no title bar: it is moved by grabbing anywhere outside its buttons.</summary>
@@ -230,6 +274,7 @@ public partial class ConverterPanel : Window
 
         _page = (_page + 1) % _pages.Count;
         UiSounds.PlayTick();
+        _pageTurnedAt = Environment.TickCount64;
         BuildWheel();
     }
 
@@ -271,12 +316,14 @@ public partial class ConverterPanel : Window
     }
 
     private object? _hinted;
+    private long _pageTurnedAt;
 
     /// <summary>Center shows the hovered target (or the file size), the caption says what a release will do.</summary>
     private void ShowWheelHint(ActionItem? item)
     {
         // A soft tick each time the target changes (mouse, Tab, or a file dragged over another slice).
-        if (item is not null && !ReferenceEquals(item, _hinted))
+        // Not right after a page turn: the new page puts another slice under the mouse, and that tick would double the page sound.
+        if (item is not null && !ReferenceEquals(item, _hinted) && Environment.TickCount64 - _pageTurnedAt > 400)
         {
             UiSounds.PlayTick();
         }
@@ -401,10 +448,75 @@ public partial class ConverterPanel : Window
 
     private void Reveal()
     {
-        if (Root.Opacity < 1)
+        // Called with every drag-over: do not restart the animation while it is running.
+        if (Root.Opacity < 1 && Environment.TickCount64 - _animStarted > 600)
         {
             UiSounds.PlayOpen();
-            Root.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+            AnimateIn(0.3);
+        }
+    }
+
+    private static bool Animated => SystemParameters.ClientAreaAnimation;
+
+    private long _animStarted;
+
+    /// <summary>Opens little by little from the center: a smooth zoom (about a third of a second) with a fade.</summary>
+    private void AnimateIn(double fromScale)
+    {
+        Root.Opacity = 1;
+        if (!Animated)
+        {
+            return;
+        }
+
+        _animStarted = Environment.TickCount64;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        Root.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(210)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        var zoom = new DoubleAnimation(fromScale, 1, TimeSpan.FromMilliseconds(340)) { EasingFunction = ease };
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, zoom);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, zoom);
+    }
+
+    /// <summary>A small bounce (it swells a little), then it shrinks until it vanishes, and the window really closes.</summary>
+    private void AnimateOutThenClose()
+    {
+        if (!Animated || !IsVisible)
+        {
+            Close();
+            return;
+        }
+
+        IsHitTestVisible = false; // a panel on its way out must not take clicks
+        static EasingDoubleKeyFrame Frame(double value, int milliseconds, EasingMode mode) =>
+            new(value, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(milliseconds)), new CubicEase { EasingMode = mode });
+
+        var scale = new DoubleAnimationUsingKeyFrames();
+        scale.KeyFrames.Add(Frame(1.07, 90, EasingMode.EaseOut));
+        scale.KeyFrames.Add(Frame(0, 320, EasingMode.EaseInOut));
+        scale.Completed += (_, _) =>
+        {
+            if (!_closed)
+            {
+                Close();
+            }
+        };
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, scale);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, scale.Clone());
+
+        var fade = new DoubleAnimationUsingKeyFrames();
+        fade.KeyFrames.Add(Frame(1, 230, EasingMode.EaseOut));
+        fade.KeyFrames.Add(Frame(0, 320, EasingMode.EaseIn));
+        Root.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private bool _closed;
+
+    /// <summary>Escape while the panel is up but not active (it opened mid-drag): close it unless a conversion runs.</summary>
+    internal void CloseFromHook()
+    {
+        if (!IsActive && _state != State.Working)
+        {
+            CloseOnce();
         }
     }
 
@@ -427,6 +539,7 @@ public partial class ConverterPanel : Window
     protected override void OnPreviewDragEnter(DragEventArgs e)
     {
         base.OnPreviewDragEnter(e);
+        _dragOver = true;
         _shiftDown = e.KeyStates.HasFlag(DragDropKeyStates.ShiftKey); // the gesture key itself is not a page flip
         if (_state is State.Working || _state is State.Done)
         {
@@ -457,6 +570,7 @@ public partial class ConverterPanel : Window
 
     protected override void OnDrop(DragEventArgs e)
     {
+        _dragOver = false;
         e.Handled = true;
         var files = ReadFiles(e.Data);
         if (_state != State.Actions || files.Count == 0)
@@ -473,7 +587,7 @@ public partial class ConverterPanel : Window
         }
 
         LoadFiles(files, fromDrag: false);
-        Activate();
+        TakeForeground();
     }
 
     private void OnActionsPreviewDragOver(object sender, DragEventArgs e)
@@ -600,6 +714,12 @@ public partial class ConverterPanel : Window
             var context = _host.CreateContext();
             var token = _cancellation.Token;
             result = await ConversionWorker.RunAsync(item.Action, files, context, progress, token);
+            if (item.Action.InProcess && result.Succeeded)
+            {
+                // The action opened its own window: nothing to report.
+                CloseOrReset();
+                return;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -889,7 +1009,7 @@ public partial class ConverterPanel : Window
         if (!_closing)
         {
             _closing = true;
-            Close();
+            AnimateOutThenClose();
         }
     }
 
@@ -901,6 +1021,7 @@ public partial class ConverterPanel : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _closed = true;
         _lingerTimer.Stop();
         _cancellation?.Cancel();
         base.OnClosed(e);

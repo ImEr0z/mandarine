@@ -23,6 +23,10 @@ public partial class App : Application, IPanelHost
     private SingleInstance? _instance;
     private TrayIcon? _tray;
     private MouseHook? _hook;
+    private KeyboardHook? _keyHook;
+    private volatile bool _shiftDown;
+    private int _panelCount;
+    private ShiftTapDetector? _shiftTap;
     private DragGestureDetector? _detector;
     private ConverterPanel? _gesturePanel;
     private SettingsWindow? _settingsWindow;
@@ -51,6 +55,27 @@ public partial class App : Application, IPanelHost
         {
             // A conversion started by the tray app: no window, no hook, no tray, no single-instance check.
             Shutdown(ConversionWorker.Run());
+            return;
+        }
+
+        if (CommandLine.Parse(arguments) is { EditPdf: true, Files.Count: 1 } edit)
+        {
+            // The PDF editor: its own process (pdfium stays out of the tray app), no hook, no tray, no single-instance check.
+            ThemeManager.Apply(this);
+            DispatcherUnhandledException += OnUnhandledException;
+            try
+            {
+                var window = new PdfEditorWindow(edit.Files[0]);
+                window.Closed += (_, _) => Shutdown();
+                window.Show();
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write(ex);
+                MessageBox.Show(ex.Message, "Mandarine", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Shutdown();
+            }
+
             return;
         }
 
@@ -145,6 +170,8 @@ public partial class App : Application, IPanelHost
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         _settings = _store.Load();
         UiSounds.Enabled = _settings.Sounds;
+        UiSounds.Hover = _settings.HoverSound;
+        UiSounds.Done = _settings.DoneSound;
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
         ThemeManager.Apply(this);
@@ -165,6 +192,52 @@ public partial class App : Application, IPanelHost
         _hook.LeftButtonDown += _detector.OnButtonDown;
         _hook.Moved += _detector.OnMove;
         _hook.LeftButtonUp += _detector.OnButtonUp;
+        _shiftTap = new ShiftTapDetector();
+        _shiftTap.Tapped += () => Dispatcher.BeginInvoke(OnShiftTapped);
+        _hook.LeftButtonDown += _ => _shiftTap.OnMouseDown();
+        _hook.LeftButtonUp += _ => _shiftTap.OnMouseUp();
+        _hook.LeftButtonDown += point =>
+        {
+            if (_panelCount > 0)
+            {
+                Dispatcher.BeginInvoke(() => CloseOpenPanelsOutside(point));
+            }
+        };
+        _keyHook = new KeyboardHook();
+        _keyHook.KeyDown += _shiftTap.OnKeyDown;
+        _keyHook.KeyUp += _shiftTap.OnKeyUp;
+        _keyHook.KeyDown += virtualKey =>
+        {
+            // Key repeat sends many key-downs: only the first press of Shift turns a page.
+            if (virtualKey is 0x10 or 0xA0 or 0xA1 && !_shiftDown)
+            {
+                _shiftDown = true;
+                if (_panelCount > 0)
+                {
+                    Dispatcher.BeginInvoke(TurnPagesOfOpenPanels);
+                }
+            }
+        };
+        _keyHook.KeyDown += virtualKey =>
+        {
+            if (virtualKey == 0x1B && _panelCount > 0) // Escape
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    foreach (var panel in Windows.OfType<ConverterPanel>().ToList())
+                    {
+                        panel.CloseFromHook();
+                    }
+                });
+            }
+        };
+        _keyHook.KeyUp += virtualKey =>
+        {
+            if (virtualKey is 0x10 or 0xA0 or 0xA1)
+            {
+                _shiftDown = false;
+            }
+        };
         ApplyGestureSettings();
 
         _hotkey = new Hotkey();
@@ -279,6 +352,44 @@ public partial class App : Application, IPanelHost
 
     private void OnGestureReleased() => _gesturePanel?.OnGestureReleased();
 
+    /// <summary>A lone Shift tap: the wheel opens for the files selected in Explorer or on the desktop, else nothing happens.</summary>
+    private void OnShiftTapped()
+    {
+        // While the wheel is up, Shift turns its pages: never open a second one.
+        if (_settings.Paused || _settings.Trigger != TriggerMode.ShiftTap || Windows.OfType<ConverterPanel>().Any(w => w.IsVisible))
+        {
+            return;
+        }
+
+        var files = ExplorerSelection.FromForegroundWindow();
+        if (files.Count > 0)
+        {
+            OpenPickerOnSelection(files);
+        }
+    }
+
+    private bool _pickerPending;
+
+    /// <summary>Opens the wheel centered on the selected icon (the mouse position if the icon cannot be found in time).</summary>
+    private async void OpenPickerOnSelection(IReadOnlyList<string> files)
+    {
+        if (_pickerPending)
+        {
+            return; // a second tap while the first is still looking for the icon
+        }
+
+        _pickerPending = true;
+        try
+        {
+            var anchor = await ExplorerSelection.SelectionAnchorAsync() ?? NativeMethods.CursorPosition();
+            Track(new ConverterPanel(this, PanelMode.Picker)).ShowPicker(files, anchor);
+        }
+        finally
+        {
+            _pickerPending = false;
+        }
+    }
+
     private void ApplyGestureSettings()
     {
         _detector?.Configure(_settings.Trigger, _settings.ExplorerOnly);
@@ -296,6 +407,16 @@ public partial class App : Application, IPanelHost
             else
             {
                 _hook.Start();
+            }
+
+            // The keyboard hook serves the Shift tap and turning the wheel's pages while it is up mid-drag.
+            if (!_settings.Paused && _settings.Trigger != TriggerMode.Disabled)
+            {
+                _keyHook?.Start();
+            }
+            else
+            {
+                _keyHook?.Stop();
             }
         }
         catch (System.ComponentModel.Win32Exception ex)
@@ -322,13 +443,10 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        _settingsWindow = Track(new SettingsWindow(_settings, InstallToolAsync));
+        _settingsWindow = Track(new SettingsWindow(_settings, InstallToolAsync, ApplySettings));
         try
         {
-            if (_settingsWindow.ShowDialog() == true && _settingsWindow.Result is { } updated)
-            {
-                ApplySettings(updated);
-            }
+            _settingsWindow.ShowDialog();
         }
         finally
         {
@@ -342,6 +460,8 @@ public partial class App : Application, IPanelHost
         _settings = updated;
         _store.Save(_settings);
         UiSounds.Enabled = _settings.Sounds;
+        UiSounds.Hover = _settings.HoverSound;
+        UiSounds.Done = _settings.DoneSound;
         _tools = _settings.CreateToolLocator();
         WarmUpTools();
         ApplyGestureSettings();
@@ -404,9 +524,31 @@ public partial class App : Application, IPanelHost
     /// last window is gone, Mandarine goes back to waiting: collect everything and return the pages
     /// to Windows so that the idle footprint stays small.
     /// </summary>
+    private void TurnPagesOfOpenPanels()
+    {
+        foreach (var panel in Windows.OfType<ConverterPanel>())
+        {
+            panel.TurnPageFromHook();
+        }
+    }
+
+    private void CloseOpenPanelsOutside(NativeMethods.POINT point)
+    {
+        foreach (var panel in Windows.OfType<ConverterPanel>().ToList())
+        {
+            panel.CloseIfClickedOutside(point);
+        }
+    }
+
     private T Track<T>(T window)
         where T : Window
     {
+        if (window is ConverterPanel)
+        {
+            Interlocked.Increment(ref _panelCount);
+            window.Closed += (_, _) => Interlocked.Decrement(ref _panelCount);
+        }
+
         // Full speed while a window is up (conversions), efficiency mode once Mandarine is waiting again.
         NativeMethods.SetEfficiencyMode(false);
         window.Closed += (_, _) => ScheduleIdleRelief();
@@ -468,6 +610,7 @@ public partial class App : Application, IPanelHost
         }
 
         _hook.Stop();
+        _keyHook?.Stop();
         ApplyGestureSettings();
     }
 
@@ -522,7 +665,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        Track(new ConverterPanel(this, PanelMode.Picker)).ShowPicker(files, NativeMethods.CursorPosition());
+        OpenPickerOnSelection(files);
     }
 
     // ---- Uninstall ----
@@ -552,6 +695,8 @@ public partial class App : Application, IPanelHost
 
         _hook?.Dispose();
         _hook = null;
+        _keyHook?.Dispose();
+        _keyHook = null;
         foreach (var folder in new[]
                  {
                      Path.GetDirectoryName(_store.FilePath)!,
@@ -578,6 +723,7 @@ public partial class App : Application, IPanelHost
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _hook?.Dispose();
+        _keyHook?.Dispose();
         _hotkey?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();

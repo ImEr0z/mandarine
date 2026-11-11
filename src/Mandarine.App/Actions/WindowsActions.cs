@@ -23,6 +23,7 @@ internal static class WindowsActions
         yield return new OcrAction(toClipboard: true);
         yield return new CopyImageAction();
         yield return new WallpaperAction();
+        yield return new PdfEditAction();
         yield return new PrintAction();
     }
 
@@ -185,6 +186,38 @@ internal sealed class WallpaperAction : FileAction
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SystemParametersInfo(int action, int param, string value, int winIni);
+}
+
+/// <summary>Opens the PDF text editor (a separate Mandarine.exe process, so that pdfium never runs in the tray app).</summary>
+internal sealed class PdfEditAction : FileAction
+{
+    public override string Id => "pdf.edit";
+
+    public override string Title => "Modifier le texte";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        var start = new ProcessStartInfo(Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Mandarine.exe"))
+        {
+            UseShellExecute = false,
+            WorkingDirectory = AppContext.BaseDirectory,
+        };
+        start.ArgumentList.Add(Services.CommandLine.EditPdfArgument);
+        start.ArgumentList.Add(inputs[0]);
+        Process.Start(start)?.Dispose();
+        return Task.FromResult(new ActionResult([], []));
+    }
 }
 
 /// <summary>Opens the Windows print dialog for images and PDF (the file's usual printing app).</summary>

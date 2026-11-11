@@ -104,7 +104,10 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid x:Name="Root">
+    <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+    <Grid.RenderTransform>
+        <ScaleTransform x:Name="RootScale" />
+    </Grid.RenderTransform>
     <!-- Format wheel (Tangerine style): shown instead of the card while choosing an action. -->
     <StackPanel x:Name="WheelHost" Visibility="Collapsed" Margin="10" HorizontalAlignment="Center">
         <Grid Width="340" Height="340">

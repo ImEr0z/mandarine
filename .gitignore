@@ -10,3 +10,5 @@ publish/
 TestResults/
 *.DotSettings.user
 *.lnk
+
+graphify-out/
