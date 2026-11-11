@@ -6,8 +6,10 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using Mandarine.Core;
 using Mandarine.Core.Actions;
+using Mandarine.Core.Converters;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
+using OcrWord = Mandarine.Core.Converters.OcrWord; // Windows.Media.Ocr has one too
 
 namespace Mandarine.App.Actions;
 
@@ -28,6 +30,7 @@ internal static class WindowsActions
     {
         yield return new OcrAction(toClipboard: false);
         yield return new OcrAction(toClipboard: true);
+        yield return new OcrPdfAction();
         yield return new CopyImageAction();
         yield return new WallpaperAction();
         yield return new PdfEditAction();
@@ -128,6 +131,66 @@ internal sealed class OcrAction(bool toClipboard) : FileAction
         using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
         var result = await engine.RecognizeAsync(bitmap);
         return string.Join(Environment.NewLine, result.Lines.Select(l => l.Text));
+    }
+}
+
+/// <summary>A scanned PDF or a picture becomes a PDF whose text can be searched and copied (Windows OCR, on the PC).</summary>
+internal sealed class OcrPdfAction : PerFileAction
+{
+    private const int PdfDpi = 200;
+    private const double A4LongSide = 842; // points: an image becomes a page of about this size
+
+    public override string Id => "windows.ocr.pdf";
+
+    public override string Title => "PDF cherchable";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool Accepts(string path) => Raster.IsImage(path) || Raster.IsPdf(path);
+
+    protected override async Task<string> ProcessAsync(
+        string input, ActionContext context, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
+        var engine = OcrEngine.TryCreateFromUserProfileLanguages()
+            ?? throw new InvalidOperationException("Aucune langue de reconnaissance de texte n'est installée dans Windows "
+                + "(Paramètres > Heure et langue > Langue > Options de la langue).");
+
+        var isPdf = Raster.IsPdf(input);
+        var pictures = isPdf ? Raster.PdfPagesToPng(input, PdfDpi) : [Raster.ImageToPng(input, OcrEngine.MaxImageDimension)];
+        var scans = new List<ScannedPage>();
+        foreach (var png in pictures)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var stream = new MemoryStream(png).AsRandomAccessStream();
+            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+            using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+            var recognized = await engine.RecognizeAsync(bitmap);
+            var words = recognized.Lines.SelectMany(l => l.Words)
+                .Select(w => new OcrWord(w.Text, w.BoundingRect.X, w.BoundingRect.Y, w.BoundingRect.Width, w.BoundingRect.Height))
+                .ToList();
+            var dpi = isPdf ? PdfDpi : Math.Max(72.0, Math.Max(bitmap.PixelWidth, bitmap.PixelHeight) * 72.0 / A4LongSide);
+            scans.Add(new ScannedPage(png, dpi, words));
+        }
+
+        if (scans.All(s => s.Words.Count == 0))
+        {
+            throw new InvalidOperationException("Aucun texte reconnu.");
+        }
+
+        var output = OutputPaths.ForFile(input, "pdf", context.OutputDirectory, "cherchable");
+        try
+        {
+            await Task.Run(() => SearchablePdf.Write(scans, output), cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            OutputPaths.Discard(output);
+            throw;
+        }
+
+        return output;
     }
 }
 

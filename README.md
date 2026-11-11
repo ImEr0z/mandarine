@@ -161,6 +161,8 @@ Tracez des rectangles sur ce qui doit disparaître (nom, adresse, montant…). M
 - **Filigrane** texte ou logo, **Recadrer**, **Extraire les images**.
 - **Protéger** par mot de passe, **retirer le mot de passe**.
 - **Comparer** deux PDF (sélectionnez-les ensemble), **Résumer**, **Métadonnées**.
+- **PDF cherchable** : un PDF scanné ou une image devient un PDF dont le texte se cherche (<kbd>Ctrl</kbd>+<kbd>F</kbd>) et se copie. Le texte est reconnu par Windows, sur votre PC.
+- **Réparer** : réécrit un PDF endommagé en copie propre (si les pages ne sont plus lisibles telles quelles, elles sont redessinées en images ; « PDF cherchable » rend alors le texte).
 </details>
 
 ### Les fichiers et les dossiers
@@ -199,7 +201,7 @@ Convertissez **JSON ↔ YAML ↔ XML ↔ CSV/TSV** et **Markdown ↔ HTML**. Un 
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
 | **Image** (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner automatiquement, Recadrer, Annoter, Flouter / masquer, Ajuster / redresser, Copier en Base64 |
-| **PDF** | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter, Modifier le texte, Signer, Supprimer / extraire / réorganiser des pages, Numéroter, Filigrane, Recadrer, Extraire les images, Caviarder, Résumer, Comparer, Métadonnées, Protéger / déverrouiller |
+| **PDF** | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter, Modifier le texte, Signer, Supprimer / extraire / réorganiser des pages, Numéroter, Filigrane, Recadrer, Extraire les images, Caviarder, Résumer, Comparer, Métadonnées, Protéger / déverrouiller, PDF cherchable, Réparer |
 | Markdown / HTML | HTML / Markdown | |
 | JSON | YAML, CSV, XML | |
 | YAML, XML | JSON | |
@@ -230,7 +232,10 @@ Icône de la zone de notification (clic gauche ou droit) › **Paramètres**. **
 - **Raccourci clavier** : cliquez sur « Modifier » puis tapez la combinaison. <kbd>Échap</kbd> annule, la corbeille supprime le raccourci.
 - **Affichage** : roue de formats ou liste. **Sons** : un son de survol et un de fin de conversion (*Doux*, *Verre*, *Goutte*, *Soie* ou *Aucun*), synthétisés par Mandarine.
 - **Fichiers créés** : à côté de l'original ou dans un dossier fixe ; **qualité** JPEG/WebP/AVIF.
+- **Réglages par type de fichier** (images, PDF, autres) : dossier de destination, qualité, taille maximale des images, résolution (DPI) des pages PDF et texte ajouté au nom (« _web »). Ce qui est vide ou à 0 reprend le réglage général.
 - **Windows** : lancement à l'ouverture de session (discret), intégration au clic droit et à « Envoyer vers ».
+
+Dans le menu de l'icône : **Conversions récentes** (les derniers fichiers créés, avec une miniature ; un clic les ouvre).
 
 ## Vos fichiers restent chez vous
 

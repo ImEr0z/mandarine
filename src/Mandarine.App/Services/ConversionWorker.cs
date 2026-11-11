@@ -27,7 +27,10 @@ internal static class ConversionWorker
         string? OutputDirectory,
         int Quality,
         Dictionary<ExternalTool, string?> Tools,
-        string? Input = null);
+        string? Input = null,
+        int MaxDimension = 0,
+        int Dpi = 0,
+        string? NameSuffix = null);
 
     internal sealed record WorkerMessage(
         ActionProgress? Progress = null,
@@ -52,7 +55,7 @@ internal static class ConversionWorker
         {
             [ExternalTool.Ffmpeg] = context.Tools.Find(ExternalTool.Ffmpeg),
             [ExternalTool.LibreOffice] = context.Tools.Find(ExternalTool.LibreOffice),
-        }, context.Input);
+        }, context.Input, context.MaxDimension, context.Dpi, context.NameSuffix);
 
         var start = new ProcessStartInfo(Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Mandarine.exe"), Argument)
         {
@@ -165,7 +168,11 @@ internal static class ConversionWorker
                 Quality = request.Quality,
                 Tools = new ToolLocator(request.Tools),
                 Input = request.Input,
+                MaxDimension = request.MaxDimension,
+                Dpi = request.Dpi,
+                NameSuffix = request.NameSuffix,
             };
+            OutputPaths.NameSuffix = request.NameSuffix;
 
             var files = request.Files;
             var progress = new SynchronousProgress(p => Send(new WorkerMessage(Progress: p)));

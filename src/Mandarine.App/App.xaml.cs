@@ -31,6 +31,7 @@ public partial class App : Application, IPanelHost
     private ConverterPanel? _gesturePanel;
     private SettingsWindow? _settingsWindow;
     private NewsWindow? _newsWindow;
+    private HistoryWindow? _historyWindow;
     private Hotkey? _hotkey;
     private DispatcherTimer? _batchTimer;
     private DispatcherTimer? _reliefTimer;
@@ -146,6 +147,19 @@ public partial class App : Application, IPanelHost
         Start(arguments);
     }
 
+    private void OpenHistory()
+    {
+        if (_historyWindow is not null)
+        {
+            _historyWindow.Activate();
+            return;
+        }
+
+        _historyWindow = new HistoryWindow();
+        _historyWindow.Closed += (_, _) => _historyWindow = null;
+        _historyWindow.Show();
+    }
+
     private void OpenNews() => OpenNews(autoClose: false);
 
     private void OpenNews(bool autoClose)
@@ -229,6 +243,7 @@ public partial class App : Application, IPanelHost
         // Open after the menu has finished closing (not from inside its click handler, which would nest a modal loop in it).
         _tray.SettingsRequested += () => Dispatcher.BeginInvoke(OpenSettings);
         _tray.NewsRequested += () => Dispatcher.BeginInvoke(OpenNews);
+        _tray.HistoryRequested += () => Dispatcher.BeginInvoke(OpenHistory);
         _tray.UndoRequested += () => Dispatcher.BeginInvoke(() =>
         {
             var removed = LastConversion.Undo();
@@ -582,12 +597,19 @@ public partial class App : Application, IPanelHost
 
     // ---- IPanelHost ----
 
-    public ActionContext CreateContext() => new()
+    public ActionContext CreateContext(IReadOnlyList<string> files)
     {
-        OutputDirectory = _settings.OutputDirectory,
-        Quality = _settings.Quality,
-        Tools = _tools,
-    };
+        var kind = _settings.For(files.Count == 0 ? FileKind.Other : FileKinds.Detect(files[0]));
+        return new()
+        {
+            OutputDirectory = string.IsNullOrWhiteSpace(kind.OutputDirectory) ? _settings.OutputDirectory : kind.OutputDirectory,
+            Quality = kind.Quality > 0 ? kind.Quality : _settings.Quality,
+            MaxDimension = kind.MaxDimension,
+            Dpi = kind.Dpi,
+            NameSuffix = kind.NameSuffix,
+            Tools = _tools,
+        };
+    }
 
     public async Task<bool> InstallToolAsync(ExternalTool tool)
     {

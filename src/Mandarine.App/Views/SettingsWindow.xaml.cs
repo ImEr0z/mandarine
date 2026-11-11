@@ -51,6 +51,7 @@ public partial class SettingsWindow : Window
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = $"Mandarine, version {version?.ToString(3)}";
         RefreshTools();
+        OnKindChanged(this, null!);
         _loading = false;
     }
 
@@ -69,6 +70,76 @@ public partial class SettingsWindow : Window
             _ => "Le menu reste accessible par clic droit, « Envoyer vers » et l'icône de notification.",
         };
         ExplorerOnlyRow.IsEnabled = SelectedTrigger != TriggerMode.Disabled;
+    }
+
+    // ---- Settings per type of file (edits go straight into the selected KindSettings) ----
+
+    private bool _fillingKind;
+
+    private KindSettings SelectedKind => (string)((ComboBoxItem)KindBox.SelectedItem).Tag switch
+    {
+        "Pdfs" => _settings.Pdfs,
+        "Others" => _settings.Others,
+        _ => _settings.Images,
+    };
+
+    private void OnKindChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_settings is null)
+        {
+            return; // raised while the window is still being built
+        }
+
+        var kind = SelectedKind;
+        _fillingKind = true;
+        KindFolderBox.Text = kind.OutputDirectory ?? string.Empty;
+        KindQualityBox.Text = kind.Quality > 0 ? kind.Quality.ToString() : string.Empty;
+        KindSizeBox.Text = kind.MaxDimension > 0 ? kind.MaxDimension.ToString() : string.Empty;
+        KindDpiBox.Text = kind.Dpi > 0 ? kind.Dpi.ToString() : string.Empty;
+        KindSuffixBox.Text = kind.NameSuffix ?? string.Empty;
+        _fillingKind = false;
+
+        var images = ReferenceEquals(kind, _settings.Images);
+        var pdf = ReferenceEquals(kind, _settings.Pdfs);
+        SetVisible(images, KindQualityRow, KindQualityDivider, KindSizeRow, KindSizeDivider);
+        SetVisible(pdf, KindDpiRow, KindDpiDivider);
+    }
+
+    private static void SetVisible(bool visible, params UIElement[] elements)
+    {
+        foreach (var element in elements)
+        {
+            element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private static int Number(TextBox box, int max) =>
+        int.TryParse(box.Text.Trim(), out var value) ? Math.Clamp(value, 0, max) : 0;
+
+    private void OnKindFieldChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_settings is null || _loading || _fillingKind)
+        {
+            return;
+        }
+
+        var kind = SelectedKind;
+        var folder = KindFolderBox.Text.Trim();
+        if (folder.Length == 0)
+        {
+            kind.OutputDirectory = null;
+        }
+        else if (Path.IsPathFullyQualified(folder))
+        {
+            kind.OutputDirectory = folder;
+        } // else: keep the last valid folder while the path is still being typed
+
+        kind.Quality = Number(KindQualityBox, 100);
+        kind.MaxDimension = Number(KindSizeBox, 20000);
+        kind.Dpi = Number(KindDpiBox, 600);
+        var suffix = new string(KindSuffixBox.Text.Where(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) < 0).ToArray()).Trim();
+        kind.NameSuffix = suffix.Length == 0 ? null : suffix;
+        QueueSave();
     }
 
     private TriggerMode SelectedTrigger =>

@@ -47,6 +47,7 @@ internal sealed class NewsWindow : Window
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.Manual; // centered by hand: the height is only known after layout
         ShowInTaskbar = true;
+        Opacity = 0; // shown by Recenter, once in place: otherwise it flashes at the default position, then jumps
         ContentRendered += (_, _) =>
         {
             // Lock the height the first tab needs: switching tabs must never move the chips under the cursor.
@@ -146,6 +147,7 @@ internal sealed class NewsWindow : Window
         var area = SystemParameters.WorkArea;
         Left = area.Left + (area.Width - ActualWidth) / 2;
         Top = area.Top + (area.Height - ActualHeight) / 2;
+        Opacity = 1;
     });
 
     /// <summary>0 = latest news, 1 = history, 2 = download stats.</summary>

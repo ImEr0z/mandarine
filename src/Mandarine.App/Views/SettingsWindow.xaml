@@ -276,6 +276,91 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ===== Réglages par type de fichier ===== -->
+                <TextBlock Text="Réglages par type de fichier" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Type de fichier" Style="{StaticResource Title}" />
+                                <TextBlock Text="Ce qui est vide ou à 0 reprend le réglage général." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <ComboBox x:Name="KindBox" Grid.Column="1" Width="230" VerticalAlignment="Top"
+                                      SelectionChanged="OnKindChanged" AutomationProperties.Name="Type de fichier">
+                                <ComboBoxItem Tag="Images" Content="Images" IsSelected="True" />
+                                <ComboBoxItem Tag="Pdfs" Content="PDF" />
+                                <ComboBoxItem Tag="Others" Content="Autres fichiers" />
+                            </ComboBox>
+                        </Grid>
+                        <Border Style="{StaticResource Divider}" />
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Dossier de destination" Style="{StaticResource Title}" VerticalAlignment="Center" />
+                            <TextBox x:Name="KindFolderBox" Grid.Column="1" Width="230" TextChanged="OnKindFieldChanged"
+                                     AutomationProperties.Name="Dossier de destination de ce type" />
+                        </Grid>
+                        <Border x:Name="KindQualityDivider" Style="{StaticResource Divider}" />
+                        <Grid x:Name="KindQualityRow" Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Qualité" Style="{StaticResource Title}" />
+                                <TextBlock Text="De 1 à 100 (JPEG, WebP, AVIF)." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <TextBox x:Name="KindQualityBox" Grid.Column="1" Width="90" TextChanged="OnKindFieldChanged"
+                                     AutomationProperties.Name="Qualité de ce type" />
+                        </Grid>
+                        <Border x:Name="KindSizeDivider" Style="{StaticResource Divider}" />
+                        <Grid x:Name="KindSizeRow" Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Taille maximale" Style="{StaticResource Title}" />
+                                <TextBlock Text="Plus grand côté en pixels ; les petites images ne sont pas agrandies." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <TextBox x:Name="KindSizeBox" Grid.Column="1" Width="90" TextChanged="OnKindFieldChanged"
+                                     AutomationProperties.Name="Taille maximale de ce type" />
+                        </Grid>
+                        <Border x:Name="KindDpiDivider" Style="{StaticResource Divider}" />
+                        <Grid x:Name="KindDpiRow" Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Résolution (DPI)" Style="{StaticResource Title}" />
+                                <TextBlock Text="Pour les pages converties en image. 150 par défaut." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <TextBox x:Name="KindDpiBox" Grid.Column="1" Width="90" TextChanged="OnKindFieldChanged"
+                                     AutomationProperties.Name="Résolution des pages PDF" />
+                        </Grid>
+                        <Border Style="{StaticResource Divider}" />
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="Ajout au nom" Style="{StaticResource Title}" />
+                                <TextBlock Text="« _web » donne « photo_web.png »." Style="{StaticResource Hint}" />
+                            </StackPanel>
+                            <TextBox x:Name="KindSuffixBox" Grid.Column="1" Width="230" TextChanged="OnKindFieldChanged"
+                                     AutomationProperties.Name="Texte ajouté au nom des fichiers de ce type" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- ===== Windows ===== -->
                 <TextBlock Text="Windows" Style="{StaticResource Section}" />
                 <Border Style="{StaticResource Card}">

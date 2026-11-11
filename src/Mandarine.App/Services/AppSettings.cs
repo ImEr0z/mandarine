@@ -31,8 +31,42 @@ public enum PanelStyle
     List,
 }
 
+/// <summary>What differs for one type of file; an empty or zero value falls back to the general setting.</summary>
+public sealed class KindSettings
+{
+    /// <summary>Folder receiving the converted files of this type; empty uses the general one.</summary>
+    public string? OutputDirectory { get; set; }
+
+    /// <summary>Encoder quality (1-100); 0 uses the general one.</summary>
+    public int Quality { get; set; }
+
+    /// <summary>Longest side of converted images in pixels; 0 keeps the size.</summary>
+    public int MaxDimension { get; set; }
+
+    /// <summary>Resolution of pages rendered from a PDF; 0 means 150.</summary>
+    public int Dpi { get; set; }
+
+    /// <summary>Added to the name of created files: "photo" becomes "photo_web".</summary>
+    public string? NameSuffix { get; set; }
+
+    public KindSettings Clone() => (KindSettings)MemberwiseClone();
+}
+
 public sealed class AppSettings
 {
+    public KindSettings Images { get; set; } = new();
+
+    public KindSettings Pdfs { get; set; } = new();
+
+    public KindSettings Others { get; set; } = new();
+
+    public KindSettings For(FileKind kind) => kind switch
+    {
+        FileKind.Image => Images,
+        FileKind.Pdf => Pdfs,
+        _ => Others,
+    };
+
     public TriggerMode Trigger { get; set; } = TriggerMode.Shift;
 
     /// <summary>Only react to drags that start in File Explorer or on the desktop.</summary>
@@ -77,7 +111,14 @@ public sealed class AppSettings
     /// <summary>Virtual-key code of the shortcut; 0 disables it.</summary>
     public int HotkeyKey { get; set; } = 0x20; // Space
 
-    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+    public AppSettings Clone()
+    {
+        var copy = (AppSettings)MemberwiseClone();
+        copy.Images = Images.Clone();
+        copy.Pdfs = Pdfs.Clone();
+        copy.Others = Others.Clone();
+        return copy;
+    }
 
     public ToolLocator CreateToolLocator() => new(new Dictionary<ExternalTool, string?>
     {
@@ -114,6 +155,12 @@ public sealed class SettingsStore
             {
                 var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Options) ?? new AppSettings();
                 settings.Quality = Math.Clamp(settings.Quality, 1, 100);
+                foreach (var kind in new[] { settings.Images, settings.Pdfs, settings.Others })
+                {
+                    kind.Quality = Math.Clamp(kind.Quality, 0, 100);
+                    kind.MaxDimension = Math.Clamp(kind.MaxDimension, 0, 20000);
+                    kind.Dpi = Math.Clamp(kind.Dpi, 0, 600);
+                }
                 if (!Enum.IsDefined(settings.Trigger))
                 {
                     settings.Trigger = TriggerMode.Shift;

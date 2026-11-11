@@ -81,6 +81,7 @@ public sealed class ActionCatalog
         yield return new PdfExtractImagesAction();
         yield return new PdfProtectAction();
         yield return new PdfUnlockAction();
+        yield return new PdfRepairAction();
         yield return new ExtractAction();
         yield return new ZipAction();
         yield return new HashAction();

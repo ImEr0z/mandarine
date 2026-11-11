@@ -13,7 +13,8 @@ internal interface IPanelHost
     /// <summary>Show actions on a wheel rather than as a list.</summary>
     bool UseWheel { get; }
 
-    ActionContext CreateContext();
+    /// <summary>Settings of the type of file being converted (images, PDF, others) on top of the general ones.</summary>
+    ActionContext CreateContext(IReadOnlyList<string> files);
 
     /// <summary>Installs a missing tool; true when it can be used afterwards.</summary>
     Task<bool> InstallToolAsync(ExternalTool tool);

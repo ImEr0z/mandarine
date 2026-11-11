@@ -40,6 +40,15 @@ public sealed class ActionContext
     /// <summary>Encoder quality (1-100) for lossy image formats.</summary>
     public int Quality { get; init; } = 85;
 
+    /// <summary>Longest side in pixels for converted images; 0 keeps the original size.</summary>
+    public int MaxDimension { get; init; }
+
+    /// <summary>Resolution of the pages rendered from a PDF; 0 means the default (150).</summary>
+    public int Dpi { get; init; }
+
+    /// <summary>Text added to the name of created files ("photo_web.png"); null or empty adds nothing.</summary>
+    public string? NameSuffix { get; init; }
+
     public ToolLocator Tools { get; init; } = new();
 }
 

@@ -2,6 +2,10 @@ namespace Mandarine.Core;
 
 public static class OutputPaths
 {
+    // shortcut: one value per process, set by the conversion worker (one request per process); in-process actions never set it.
+    /// <summary>Appended to the base name of every file created by <see cref="ForFile"/> ("photo" becomes "photo_web").</summary>
+    public static string? NameSuffix { get; set; }
+
     /// <summary>
     /// Returns a free path for an output derived from <paramref name="input"/>:
     /// "photo.heic" becomes "photo.png", then "photo (2).png" if taken.
@@ -10,7 +14,7 @@ public static class OutputPaths
     public static string ForFile(string input, string extension, string? outputDirectory, string? suffix = null)
     {
         var directory = DirectoryFor(input, outputDirectory);
-        var baseName = BaseNameOf(input);
+        var baseName = BaseNameOf(input) + NameSuffix;
         if (!string.IsNullOrEmpty(suffix))
         {
             baseName = $"{baseName} - {suffix}";

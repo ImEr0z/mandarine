@@ -16,7 +16,7 @@ internal static class Pdf
 /// <summary>Renders each page to an image. Multi-page documents go into a dedicated folder.</summary>
 internal sealed class PdfToImagesAction(string extension) : PerFileAction
 {
-    private const int Dpi = 150;
+    private const int DefaultDpi = 150;
 
     public override string Id => $"pdf.to.{extension}";
 
@@ -34,8 +34,8 @@ internal sealed class PdfToImagesAction(string extension) : PerFileAction
         {
             var bytes = File.ReadAllBytes(input);
             var pageCount = PDFtoImage.Conversion.GetPageCount(bytes);
-            var options = new PDFtoImage.RenderOptions(Dpi: Dpi, WithAnnotations: true, WithFormFill: true,
-                BackgroundColor: SkiaSharp.SKColors.White);
+            var options = new PDFtoImage.RenderOptions(Dpi: context.Dpi > 0 ? context.Dpi : DefaultDpi,
+                WithAnnotations: true, WithFormFill: true, BackgroundColor: SkiaSharp.SKColors.White);
 
             if (pageCount == 1)
             {
@@ -204,7 +204,7 @@ internal sealed class PdfMergeAction : FileAction
         }, cancellationToken);
 
     /// <summary>Copies the pages as they are (text stays selectable). False if this PDF cannot be imported.</summary>
-    private static bool TryImportPages(PdfDocument merged, string path)
+    internal static bool TryImportPages(PdfDocument merged, string path)
     {
         PdfDocument document;
         try
@@ -229,7 +229,7 @@ internal sealed class PdfMergeAction : FileAction
     }
 
     /// <summary>Fallback: each page rendered at 200 dpi (the engine that displays PDFs) and placed at its real size.</summary>
-    private static void AddRenderedPages(PdfDocument merged, string path, CancellationToken cancellationToken)
+    internal static void AddRenderedPages(PdfDocument merged, string path, CancellationToken cancellationToken)
     {
         const int Dpi = 200;
         var bytes = File.ReadAllBytes(path);

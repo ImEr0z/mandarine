@@ -158,6 +158,11 @@ internal sealed class ImageConvertAction(string extension) : PerFileAction
             {
                 ImageFormats.Transform(input, output, extension, image =>
                 {
+                    if (context.MaxDimension > 0)
+                    {
+                        image.Resize(new MagickGeometry((uint)context.MaxDimension, (uint)context.MaxDimension) { Greater = true });
+                    }
+
                     if (ImageFormats.IsLossy(extension))
                     {
                         image.Quality = (uint)Math.Clamp(context.Quality, 1, 100);

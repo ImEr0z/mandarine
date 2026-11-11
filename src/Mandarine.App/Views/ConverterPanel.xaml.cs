@@ -725,7 +725,7 @@ public partial class ConverterPanel : Window
         ActionResult result;
         try
         {
-            var context = _host.CreateContext();
+            var context = _host.CreateContext(files);
             context.Input = answer;
             var token = _cancellation.Token;
             result = await ConversionWorker.RunAsync(item.Action, files, context, progress, token);

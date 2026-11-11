@@ -32,6 +32,7 @@ internal sealed class TrayIcon : IDisposable
     private const int CmdExit = 5;
     private const int CmdNews = 6;
     private const int CmdUndo = 7;
+    private const int CmdHistory = 8;
 
     private readonly HwndSource _window;
     private readonly IntPtr _icon;
@@ -44,8 +45,10 @@ internal sealed class TrayIcon : IDisposable
         _paused = paused;
         AllowDarkMenus();
 
-        // A message-only window (parent HWND_MESSAGE): it receives the icon's messages and owns the menu, and is never shown.
-        _window = new HwndSource(new HwndSourceParameters("Mandarine tray") { ParentWindow = new IntPtr(-3), Width = 0, Height = 0, WindowStyle = 0 });
+        // A hidden top-level window that receives the icon's messages and owns the menu. It must be the very window the icon
+        // belongs to, and a real top-level one (not message-only): that is what keeps an auto-hidden taskbar visible while
+        // the menu is open, and what receives the "TaskbarCreated" broadcast.
+        _window = new HwndSource(new HwndSourceParameters("Mandarine tray") { Width = 0, Height = 0, WindowStyle = unchecked((int)0x80000000), ExtendedWindowStyle = 0x80 /* WS_EX_TOOLWINDOW */ });
         _window.AddHook(WndProc);
 
         // The icon of the exe itself, at the size of the notification area.
@@ -59,6 +62,8 @@ internal sealed class TrayIcon : IDisposable
     public event Action? NewsRequested;
 
     public event Action? UndoRequested;
+
+    public event Action? HistoryRequested;
 
     public event Action? UpdateCheckRequested;
 
@@ -106,8 +111,7 @@ internal sealed class TrayIcon : IDisposable
         data.uCallbackMessage = TrayMessage;
         data.hIcon = _icon;
         data.szTip = "Mandarine";
-        Shell_NotifyIcon(NIM_ADD, ref data);
-    }
+        Shell_NotifyIcon(NIM_ADD, ref data);    }
 
     private IntPtr WndProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -148,6 +152,7 @@ internal sealed class TrayIcon : IDisposable
             AppendMenu(menu, MF_SEPARATOR, 0, null);
             AppendMenu(menu, MF_STRING | (_paused ? MF_CHECKED : 0), CmdPause, "Suspendre le geste");
             AppendMenu(menu, MF_STRING | (LastConversion.CanUndo ? 0 : MF_GRAYED), CmdUndo, "Annuler la dernière conversion");
+            AppendMenu(menu, MF_STRING, CmdHistory, "Conversions récentes…");
             AppendMenu(menu, MF_SEPARATOR, 0, null);
             AppendMenu(menu, MF_STRING, CmdUninstall, "Désinstaller Mandarine…");
             AppendMenu(menu, MF_STRING, CmdExit, "Quitter Mandarine");
@@ -164,6 +169,7 @@ internal sealed class TrayIcon : IDisposable
                 case CmdSettings: SettingsRequested?.Invoke(); break;
                 case CmdNews: NewsRequested?.Invoke(); break;
                 case CmdUndo: UndoRequested?.Invoke(); break;
+                case CmdHistory: HistoryRequested?.Invoke(); break;
                 case CmdUpdate: UpdateCheckRequested?.Invoke(); break;
                 case CmdPause:
                     _paused = !_paused;

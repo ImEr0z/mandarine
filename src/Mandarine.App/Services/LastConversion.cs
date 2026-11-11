@@ -9,7 +9,11 @@ internal static class LastConversion
 
     public static bool CanUndo => _outputs.Count > 0;
 
-    public static void Remember(IReadOnlyList<string> outputs) => _outputs = outputs;
+    public static void Remember(IReadOnlyList<string> outputs)
+    {
+        _outputs = outputs;
+        History.Add(outputs);
+    }
 
     /// <summary>Recycles every output that still exists. Returns how many were removed.</summary>
     public static int Undo()
