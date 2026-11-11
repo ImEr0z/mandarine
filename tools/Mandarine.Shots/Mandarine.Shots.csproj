@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Developer tool, not shipped and not part of Mandarine.sln. It renders the app windows off screen (no mouse, no focus, no desktop in the picture) into docs/images for the README. Run the project with the output folder as its first argument. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>$(NoWarn);WPF0001;CA1416;CS8618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Mandarine.App\Mandarine.App.csproj" />
+  </ItemGroup>
+
+</Project>
