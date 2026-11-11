@@ -8,6 +8,8 @@ internal sealed record Release(string Version, string Date, string Headline, Not
 /// What is new, release by release (newest first). Add an entry here with every version:
 /// the "Nouveautés" window shows the first one big, and the rest in its history tab.
 /// Write for someone who has never read the code: plain words, one idea per note.
+/// Then run scripts/release-notes.py: it turns these entries into docs/releases/vX.Y.Z.md, which the release
+/// workflow publishes as the GitHub description (the tag fails without that file).
 /// </summary>
 internal static class ReleaseNotes
 {

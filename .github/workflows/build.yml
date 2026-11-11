@@ -100,6 +100,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The description of each release is written by hand in docs/releases/<tag>.md (same text as the app's
+      # "Nouveautés" page); GitHub then appends the list of commits.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: docs/releases
+
+      - name: Release description exists
+        shell: bash
+        run: |
+          test -s "docs/releases/${{ github.ref_name }}.md" || { echo "::error::Write docs/releases/${{ github.ref_name }}.md before tagging."; exit 1; }
+
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: Mandarine-windows
@@ -111,4 +123,5 @@ jobs:
             out/*.zip
             out/SHA256SUMS.txt
             out/velopack/*
+          body_path: docs/releases/${{ github.ref_name }}.md
           generate_release_notes: true
