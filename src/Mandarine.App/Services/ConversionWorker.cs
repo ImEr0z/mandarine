@@ -26,7 +26,8 @@ internal static class ConversionWorker
         IReadOnlyList<string> Files,
         string? OutputDirectory,
         int Quality,
-        Dictionary<ExternalTool, string?> Tools);
+        Dictionary<ExternalTool, string?> Tools,
+        string? Input = null);
 
     internal sealed record WorkerMessage(
         ActionProgress? Progress = null,
@@ -51,7 +52,7 @@ internal static class ConversionWorker
         {
             [ExternalTool.Ffmpeg] = context.Tools.Find(ExternalTool.Ffmpeg),
             [ExternalTool.LibreOffice] = context.Tools.Find(ExternalTool.LibreOffice),
-        });
+        }, context.Input);
 
         var start = new ProcessStartInfo(Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Mandarine.exe"), Argument)
         {
@@ -163,6 +164,7 @@ internal static class ConversionWorker
                 OutputDirectory = request.OutputDirectory,
                 Quality = request.Quality,
                 Tools = new ToolLocator(request.Tools),
+                Input = request.Input,
             };
 
             var files = request.Files;

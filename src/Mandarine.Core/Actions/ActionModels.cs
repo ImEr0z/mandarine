@@ -26,8 +26,14 @@ public sealed record ActionProgress(int Index, int Count, string? CurrentFile, d
     public double Overall => Count == 0 ? 1 : Math.Clamp((Index + (FileFraction ?? 0)) / Count, 0, 1);
 }
 
+/// <summary>What an action needs the user to type before it runs (pages to delete, a password...).</summary>
+public sealed record ActionPrompt(string Question, string Hint, bool Secret = false);
+
 public sealed class ActionContext
 {
+    /// <summary>The user's answer to <see cref="FileAction.Prompt"/>.</summary>
+    public string? Input { get; set; }
+
     /// <summary>Folder receiving outputs. Null writes next to each input file.</summary>
     public string? OutputDirectory { get; init; }
 

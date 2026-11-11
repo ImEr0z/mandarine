@@ -25,8 +25,8 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 
 | Fichier | Convertir en | Outils |
 | --- | --- | --- |
-| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner les marges, Copier en Base64 |
-| PDF | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter les pages, Modifier le texte (fenêtre d'édition : cliquer une ligne et taper, ajouter du texte) |
+| Image (PNG, JPG, HEIC, WebP, AVIF, GIF, BMP, TIFF, PSD, SVG, JXL, RAW…) | PNG, JPG, PDF, WEBP, AVIF, GIF, BMP, TIFF, ICO, JXL | Réduire de 50 %, Max 1920 px, Compresser, Sans métadonnées, Pivoter, Miroir, Noir et blanc, Rogner automatiquement, Copier en Base64, Recadrer (à la main, formats 1:1, 4:3, 16:9…), Annoter (flèches, cadres, texte), Flouter / masquer une zone, Ajuster / redresser (luminosité, contraste, couleurs, angle) |
+| PDF | PNG, JPG (une image par page), TXT | Une page par fichier, Pivoter les pages, Modifier le texte (fenêtre d'édition : cliquer une ligne et taper, ajouter du texte, signer), Supprimer / extraire / réorganiser des pages, Numéroter, Filigrane (texte ou logo, avec aperçu), Recadrer (avec aperçu), Extraire les images, Caviarder (le contenu caché est vraiment supprimé), Résumer (sur le PC, sans service en ligne), Comparer deux PDF, Métadonnées (titre, auteur, infos cachées), Protéger / retirer le mot de passe |
 | Markdown | HTML | |
 | HTML | Markdown | |
 | JSON | YAML, CSV, XML | |
@@ -36,6 +36,8 @@ Les fichiers créés sont placés à côté de l'original (ou dans un dossier ch
 | Plusieurs images et/ou PDF | Fusionner en PDF (premier secteur de la roue, fichiers dans l'ordre de leur nom) | |
 | Image ou PDF (fonctions de Windows) | | Extraire le texte (OCR), Copier le texte, Copier l'image, Fond d'écran, Imprimer |
 | Tout fichier ou dossier | | Compresser en ZIP, Copier le chemin, Empreinte SHA-256 |
+| Plusieurs fichiers | | Renommer en masse (modèle avec nom, numéro, date ; annulable) |
+| Dossier | | Trier par type, année ou mois (annulable), Trouver les doublons (copies à la corbeille) |
 
 Tout est fait par Mandarine elle-même, sans aucun logiciel à installer à côté. L'audio, la vidéo et les documents Office (qui demandent FFmpeg ou LibreOffice) sont mis de côté dans cette version.
 
@@ -114,11 +116,11 @@ Pour centrer la roue sur le fichier, la position de l'icône est lue par UI Auto
 
 ## Statut et feuille de route
 
-Version 0.5. Le moteur de conversion est couvert par plus de 90 tests automatisés (certains sont ignorés si FFmpeg ou LibreOffice sont absents). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
+Version 0.6. Le moteur de conversion est couvert par plus de 90 tests automatisés (certains sont ignorés si FFmpeg ou LibreOffice sont absents). L'interface Windows est compilée et empaquetée par la CI, mais doit encore être éprouvée sur différentes configurations (multi-écrans à échelles différentes, Windows 10, ARM).
 
 Pistes :
 
-- compression PDF, OCR, suppression d'arrière-plan ;
+- compression PDF, suppression d'arrière-plan ;
 - progression dans la zone de notification pour les longues vidéos ;
 - entrée dans le menu contextuel moderne de Windows 11 (nécessite un paquet MSIX signé) ;
 - traduction anglaise.

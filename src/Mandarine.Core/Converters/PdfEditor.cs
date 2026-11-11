@@ -128,7 +128,7 @@ public static class PdfEditor
     }
 
     /// <summary>Writes the edited copy. Saved aside then moved, so that the output may be the input file.</summary>
-    public static void Save(string input, string output, IReadOnlyList<PdfEdit> edits)
+    public static void Save(string input, string output, IReadOnlyList<PdfEdit> edits, IReadOnlyList<PdfStamp>? stamps = null)
     {
         try
         {
@@ -169,9 +169,11 @@ public static class PdfEditor
         var temporary = output + ".mandarine.tmp";
         using (document)
         {
-            foreach (var group in edits.GroupBy(e => e.Replacement.Page))
+            stamps ??= [];
+            foreach (var pageIndex in edits.Select(e => e.Replacement.Page).Union(stamps.Select(s => s.Page)).Order())
             {
-                var page = document.Pages[group.Key];
+                var group = edits.Where(e => e.Replacement.Page == pageIndex);
+                var page = document.Pages[pageIndex];
                 var height = page.Height.Point;
                 var originX = page.MediaBox.X1;
                 var originY = page.MediaBox.Y1;
@@ -191,6 +193,12 @@ public static class PdfEditor
                         graphics.DrawString(r.Text, CreateFont(r), new XSolidBrush(ToColor(r.Color)),
                             r.X - originX, height - (r.Baseline - originY), XStringFormats.BaseLineLeft);
                     }
+                }
+
+                foreach (var stamp in stamps.Where(s => s.Page == pageIndex))
+                {
+                    using var image = XImage.FromStream(new MemoryStream(stamp.Image));
+                    graphics.DrawImage(image, stamp.X, stamp.Y, stamp.Width, stamp.Height);
                 }
             }
 
@@ -435,3 +443,6 @@ public static class PdfEditor
         }
     }
 }
+
+/// <summary>An image (a signature) placed on a page; X and Y are the top-left corner in points from the top-left of the page.</summary>
+public sealed record PdfStamp(int Page, double X, double Y, double Width, double Height, byte[] Image);

@@ -17,6 +17,13 @@ namespace Mandarine.App.Actions;
 /// </summary>
 internal static class WindowsActions
 {
+    private static bool PdfOnly(string path) => Raster.IsPdf(path);
+
+    private static bool FolderOnly(string path) => Directory.Exists(path);
+
+    private static bool ImageOnly(string path) =>
+        Array.IndexOf(Views.ImageCropWindow.Extensions, Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) >= 0;
+
     public static IEnumerable<FileAction> All()
     {
         yield return new OcrAction(toClipboard: false);
@@ -24,11 +31,26 @@ internal static class WindowsActions
         yield return new CopyImageAction();
         yield return new WallpaperAction();
         yield return new PdfEditAction();
+        yield return new PdfOrganizeAction();
+        yield return new PdfCompareAction();
+        yield return new PdfSummaryAction();
+        yield return new ImageCropAction();
+        yield return new PdfRedactAction();
+        yield return new PdfPreviewAction("pdf.watermark", "Filigrane", "\uE7B8");
+        yield return new PdfPreviewAction("pdf.crop", "Recadrer", "\uE7A8");
+        yield return new BulkRenameAction();
+        yield return new WindowAction("pdf.metadata", "Métadonnées", "\uE946", Services.CommandLine.MetadataPdfArgument, PdfOnly);
+        yield return new WindowAction("folder.sort", "Trier le dossier", "\uE8CB", Services.CommandLine.SortFolderArgument, FolderOnly);
+        yield return new WindowAction("folder.duplicates", "Trouver les doublons", "\uE8C8", Services.CommandLine.FindDuplicatesArgument, FolderOnly);
+        yield return new WindowAction("image.adjust", "Ajuster / redresser", "\uE706", Services.CommandLine.AdjustImageArgument, ImageOnly);
+        yield return new ImageMarkupAction(blur: false);
+        yield return new ImageMarkupAction(blur: true);
         yield return new PrintAction();
     }
 
     /// <summary>The app's catalog: Mandarine's own conversions plus the Windows features above.</summary>
-    public static ActionCatalog Catalog() => new(ActionCatalog.SelfContained().All.Concat(All()));
+    public static ActionCatalog Catalog() =>
+        new(ActionCatalog.SelfContained().All.Where(a => a.Id is not ("pdf.watermark" or "pdf.crop")).Concat(All()));
 }
 
 /// <summary>Recognizes the text of an image or a scanned PDF with the OCR engine built into Windows.</summary>
@@ -208,14 +230,79 @@ internal sealed class PdfEditAction : FileAction
     public override Task<ActionResult> RunAsync(
         IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
     {
+        PdfWindowLauncher.Start(Services.CommandLine.EditPdfArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>PDF windows run in their own process: pdfium stays out of the tray app.</summary>
+internal static class PdfWindowLauncher
+{
+    public static void Start(string argument, IReadOnlyList<string> files)
+    {
         var start = new ProcessStartInfo(Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Mandarine.exe"))
         {
             UseShellExecute = false,
             WorkingDirectory = AppContext.BaseDirectory,
         };
-        start.ArgumentList.Add(Services.CommandLine.EditPdfArgument);
-        start.ArgumentList.Add(inputs[0]);
+        start.ArgumentList.Add(argument);
+        foreach (var file in files)
+        {
+            start.ArgumentList.Add(file);
+        }
+
         Process.Start(start)?.Dispose();
+    }
+}
+
+/// <summary>Reorder, duplicate or delete the pages of a PDF on a wall of thumbnails.</summary>
+internal sealed class PdfOrganizeAction : FileAction
+{
+    public override string Id => "pdf.organize";
+
+    public override string Title => "Réorganiser les pages";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.OrganizePdfArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Shows what changed between two versions of a PDF (select both, the older one first by name).</summary>
+internal sealed class PdfCompareAction : FileAction
+{
+    public override string Id => "pdf.compare";
+
+    public override string Title => "Comparer les deux PDF";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 2 && inputs.All(Accepts);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        // Older version first: by last write time, the earlier file is the "before".
+        var ordered = inputs.OrderBy(File.GetLastWriteTimeUtc).ToList();
+        PdfWindowLauncher.Start(Services.CommandLine.ComparePdfArgument, ordered);
         return Task.FromResult(new ActionResult([], []));
     }
 }
@@ -277,5 +364,182 @@ internal static class StaThread
         {
             throw failure;
         }
+    }
+}
+
+/// <summary>Key sentences of a PDF in a small window beside the work, computed on the PC (no online service).</summary>
+internal sealed class PdfSummaryAction : FileAction
+{
+    public override string Id => "pdf.summary";
+
+    public override string Title => "Résumer";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.SummaryPdfArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Crop a picture by hand in a window: drag the frame, save a copy.</summary>
+internal sealed class ImageCropAction : FileAction
+{
+    public override string Id => "image.crop";
+
+    public override string Title => "Recadrer";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) =>
+        Array.IndexOf(Views.ImageCropWindow.Extensions, Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) >= 0;
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.CropImageArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Black boxes over sensitive text or images; the covered content is removed from the copy, not just hidden.</summary>
+internal sealed class PdfRedactAction : FileAction
+{
+    public override string Id => "pdf.redact";
+
+    public override string Title => "Caviarder";
+
+    public override string Glyph => "";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.RedactPdfArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Watermark and crop of a PDF with a live preview of the first page, before anything is written.</summary>
+internal sealed class PdfPreviewAction(string id, string title, string glyph) : FileAction
+{
+    public override string Id => id;
+
+    public override string Title => title;
+
+    public override string Glyph => glyph;
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => Raster.IsPdf(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.PreviewPdfPrefix + id, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Rename the selected files from a template (name, number, date), with a list of the new names before applying.</summary>
+internal sealed class BulkRenameAction : FileAction
+{
+    public override string Id => "files.rename";
+
+    public override string Title => "Renommer en masse";
+
+    public override string Glyph => "\uE8AC";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override int MinInputs => 2;
+
+    public override bool InProcess => true;
+
+    public override bool Accepts(string path) => File.Exists(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(Services.CommandLine.RenameFilesArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>Arrows, boxes and text on a picture, or blur / hide a zone, in one editing window.</summary>
+internal sealed class ImageMarkupAction(bool blur) : FileAction
+{
+    public override string Id => blur ? "image.blur" : "image.annotate";
+
+    public override string Title => blur ? "Flouter / masquer" : "Annoter";
+
+    public override string Glyph => blur ? "\uED1A" : "\uE7C6";
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) =>
+        Array.IndexOf(Views.ImageCropWindow.Extensions, Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) >= 0;
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(blur ? Services.CommandLine.BlurImageArgument : Services.CommandLine.AnnotateImageArgument, inputs);
+        return Task.FromResult(new ActionResult([], []));
+    }
+}
+
+/// <summary>An action that opens a tool window of its own on one file or folder.</summary>
+internal sealed class WindowAction(string id, string title, string glyph, string argument, Func<string, bool> accepts) : FileAction
+{
+    public override string Id => id;
+
+    public override string Title => title;
+
+    public override string Glyph => glyph;
+
+    public override ActionGroup Group => ActionGroup.Tools;
+
+    public override bool InProcess => true;
+
+    public override bool IsAvailableFor(IReadOnlyList<string> inputs) => inputs.Count == 1 && Accepts(inputs[0]);
+
+    public override bool Accepts(string path) => accepts(path);
+
+    public override Task<ActionResult> RunAsync(
+        IReadOnlyList<string> inputs, ActionContext context, IProgress<ActionProgress>? progress, CancellationToken cancellationToken)
+    {
+        PdfWindowLauncher.Start(argument, inputs);
+        return Task.FromResult(new ActionResult([], []));
     }
 }

@@ -688,11 +688,25 @@ public partial class ConverterPanel : Window
             return;
         }
 
+        string? answer = null;
+        if (item.Action.Prompt is { } prompt)
+        {
+            answer = InputDialog.Ask(item.Action.Title, prompt, item.Action.Glyph);
+            if (answer is null)
+            {
+                Close();
+                return;
+            }
+        }
+
         SetState(State.Working);
         WorkingText.Text = item.WorkingLabel + "…";
         WorkingDetail.Text = files.Count == 1 ? Path.GetFileName(files[0]) : $"{files.Count} fichiers";
         WorkingProgress.IsIndeterminate = true;
         _cancellation = new CancellationTokenSource();
+        // No card while converting: the result comes as a Windows notification. The panel stays alive (hidden)
+        // because closing it cancels the conversion.
+        Hide();
 
         var progress = new Progress<ActionProgress>(p =>
         {
@@ -712,22 +726,24 @@ public partial class ConverterPanel : Window
         try
         {
             var context = _host.CreateContext();
+            context.Input = answer;
             var token = _cancellation.Token;
             result = await ConversionWorker.RunAsync(item.Action, files, context, progress, token);
             if (item.Action.InProcess && result.Succeeded)
             {
                 // The action opened its own window: nothing to report.
-                CloseOrReset();
+                Close();
                 return;
             }
         }
         catch (OperationCanceledException)
         {
-            CloseOrReset();
+            Close();
             return;
         }
         catch (MissingToolException ex)
         {
+            Show();
             ShowMissingTool(ex.Tool, item, files);
             return;
         }
@@ -741,12 +757,55 @@ public partial class ConverterPanel : Window
             _cancellation = null;
         }
 
-        ShowResult(result);
+        Finish(result, item, files);
+    }
+
+    private void Finish(ActionResult result, ActionItem item, IReadOnlyList<string> files)
+    {
+        if (result.OutputFiles.Count > 0)
+        {
+            LastConversion.Remember(result.OutputFiles);
+        }
+
+        var copied = result.ClipboardText is { } text && TrySetClipboard(text);
+        var succeeded = result.OutputFiles.Count;
+        var failed = result.Errors.Count;
+        var isConversion = item.Action.Group == ActionGroup.Convert;
+        var done = isConversion ? $"Converti en {item.Action.Title}" : $"{item.Action.Title} : terminé";
+        var title = (failed, succeeded) switch
+        {
+            (0, _) when copied => "Copié dans le presse-papiers",
+            (0, _) => done,
+            (_, 0) => isConversion ? $"Échec de la conversion en {item.Action.Title}" : $"{item.Action.Title} : échec",
+            _ => $"{succeeded} réussi{(succeeded > 1 ? "s" : string.Empty)}, {failed} en échec ({item.Action.Title})",
+        };
+        var detail = failed > 0
+            ? $"{Path.GetFileName(result.Errors[0].Input)} : {result.Errors[0].Message}"
+            : succeeded == 1 && files.Count == 1 ? $"{Path.GetFileName(files[0])} → {Path.GetFileName(result.OutputFiles[0])}"
+            : succeeded > 0 ? $"{files.Count} fichier(s) traité(s), résultat dans {Path.GetDirectoryName(result.OutputFiles[0])}"
+            : copied ? Preview(result.ClipboardText!) : title;
+
+        _host.Notify(title, detail, succeeded > 0 ? result.OutputFiles[0] : null, canUndo: succeeded > 0 && failed == 0);
+        if (failed == 0)
+        {
+            UiSounds.PlaySuccess();
+        }
+        else
+        {
+            UiSounds.PlayError();
+        }
+
+        Close();
     }
 
     private void ShowResult(ActionResult result)
     {
         _outputs = result.OutputFiles;
+        if (result.OutputFiles.Count > 0)
+        {
+            LastConversion.Remember(result.OutputFiles);
+        }
+
         var copied = result.ClipboardText is { } text && TrySetClipboard(text);
         var succeeded = result.OutputFiles.Count;
         var failed = result.Errors.Count;

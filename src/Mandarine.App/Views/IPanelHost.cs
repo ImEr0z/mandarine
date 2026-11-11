@@ -19,4 +19,7 @@ internal interface IPanelHost
     Task<bool> InstallToolAsync(ExternalTool tool);
 
     void OpenSettings();
+
+    /// <summary>Windows notification; clicking it opens <paramref name="openPath"/> when given.</summary>
+    void Notify(string title, string text, string? openPath = null, bool canUndo = false);
 }

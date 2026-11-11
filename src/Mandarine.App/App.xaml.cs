@@ -30,6 +30,7 @@ public partial class App : Application, IPanelHost
     private DragGestureDetector? _detector;
     private ConverterPanel? _gesturePanel;
     private SettingsWindow? _settingsWindow;
+    private NewsWindow? _newsWindow;
     private Hotkey? _hotkey;
     private DispatcherTimer? _batchTimer;
     private DispatcherTimer? _reliefTimer;
@@ -58,14 +59,30 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        if (CommandLine.Parse(arguments) is { EditPdf: true, Files.Count: 1 } edit)
+        if (CommandLine.Parse(arguments) is { Files.Count: > 0 } pdfWindow
+            && (pdfWindow.EditPdf || pdfWindow.OrganizePdf || pdfWindow.ComparePdf || pdfWindow.SummaryPdf || pdfWindow.CropImage
+                || pdfWindow.RedactPdf || pdfWindow.RenameFiles || pdfWindow.AnnotateImage || pdfWindow.BlurImage || pdfWindow.PreviewAction is not null
+                || pdfWindow.MetadataPdf || pdfWindow.SortFolder || pdfWindow.FindDuplicates || pdfWindow.AdjustImage))
         {
-            // The PDF editor: its own process (pdfium stays out of the tray app), no hook, no tray, no single-instance check.
+            // Tool windows: their own process (pdfium stays out of the tray app), no hook, no tray, no single-instance check.
             ThemeManager.Apply(this);
             DispatcherUnhandledException += OnUnhandledException;
             try
             {
-                var window = new PdfEditorWindow(edit.Files[0]);
+                Window window = pdfWindow.OrganizePdf ? new PdfOrganizerWindow(pdfWindow.Files[0])
+                    : pdfWindow.RedactPdf ? new PdfRedactWindow(pdfWindow.Files[0])
+                    : pdfWindow.RenameFiles ? new BulkRenameWindow(pdfWindow.Files)
+                    : pdfWindow.MetadataPdf ? new PdfMetadataWindow(pdfWindow.Files[0])
+                    : pdfWindow.SortFolder ? new FolderSortWindow(pdfWindow.Files[0])
+                    : pdfWindow.FindDuplicates ? new DuplicatesWindow(pdfWindow.Files[0])
+                    : pdfWindow.AdjustImage ? new ImageAdjustWindow(pdfWindow.Files[0])
+                    : pdfWindow.PreviewAction is { } previewed ? new PdfPreviewWindow(previewed, pdfWindow.Files[0])
+                    : pdfWindow.AnnotateImage ? new ImageAnnotateWindow(pdfWindow.Files[0], blur: false)
+                    : pdfWindow.BlurImage ? new ImageAnnotateWindow(pdfWindow.Files[0], blur: true)
+                    : pdfWindow.SummaryPdf ? new PdfSummaryWindow(pdfWindow.Files[0])
+                    : pdfWindow.CropImage ? new ImageCropWindow(pdfWindow.Files[0])
+                    : pdfWindow.ComparePdf && pdfWindow.Files.Count == 2 ? new PdfCompareWindow(pdfWindow.Files[0], pdfWindow.Files[1])
+                    : new PdfEditorWindow(pdfWindow.Files[0]);
                 window.Closed += (_, _) => Shutdown();
                 window.Show();
             }
@@ -101,8 +118,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
-        Start(arguments);
-    }
+        Start(arguments);    }
 
     private async Task UpdateThenStartAsync(string[] arguments)
     {
@@ -115,6 +131,7 @@ public partial class App : Application, IPanelHost
                 window = new UpdateWindow(update.TargetFullRelease.Version.ToString());
                 window.Show();
                 await AppUpdater.DownloadAsync(update, window.SetProgress);
+                await window.FinishAsync();
                 AppUpdater.ApplyAndRestart(update, arguments);
                 return;
             }
@@ -129,6 +146,32 @@ public partial class App : Application, IPanelHost
         Start(arguments);
     }
 
+    private void OpenNews() => OpenNews(autoClose: false);
+
+    private void OpenNews(bool autoClose)
+    {
+        if (_newsWindow is not null)
+        {
+            _newsWindow.Activate();
+            return;
+        }
+
+        var window = _newsWindow = new NewsWindow();
+        window.Closed += (_, _) =>
+        {
+            _newsWindow = null;
+            if (CurrentVersion is { } version)
+            {
+                MarkNewsSeen(version);
+            }
+        };
+        window.Show();
+        if (autoClose)
+        {
+            window.StartCountdown(20);
+        }
+    }
+
     private async void CheckForUpdatesFromTray()
     {
         if (!AppUpdater.IsInstalled)
@@ -137,6 +180,7 @@ public partial class App : Application, IPanelHost
             return;
         }
 
+        UpdateWindow? window = null;
         try
         {
             var update = await AppUpdater.FindAsync(TimeSpan.FromSeconds(15));
@@ -146,12 +190,15 @@ public partial class App : Application, IPanelHost
                 return;
             }
 
-            _tray?.Notify("Mise à jour trouvée", $"Version {update.TargetFullRelease.Version} : téléchargement, puis redémarrage.");
-            await AppUpdater.DownloadAsync(update);
+            window = new UpdateWindow(update.TargetFullRelease.Version.ToString());
+            window.Show();
+            await AppUpdater.DownloadAsync(update, window.SetProgress);
+            await window.FinishAsync();
             AppUpdater.ApplyAndRestart(update, ["--background"]);
         }
         catch (Exception ex)
         {
+            window?.Close();
             ErrorLog.Write(ex);
             _tray?.Notify("Mises à jour", "Impossible de vérifier pour l'instant. Réessayez plus tard.");
         }
@@ -178,8 +225,16 @@ public partial class App : Application, IPanelHost
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         _tray = new TrayIcon(_settings.Paused);
+        ExtractCache.CleanLater();
         // Open after the menu has finished closing (not from inside its click handler, which would nest a modal loop in it).
         _tray.SettingsRequested += () => Dispatcher.BeginInvoke(OpenSettings);
+        _tray.NewsRequested += () => Dispatcher.BeginInvoke(OpenNews);
+        _tray.UndoRequested += () => Dispatcher.BeginInvoke(() =>
+        {
+            var removed = LastConversion.Undo();
+            _tray?.Notify("Conversion annulée",
+                removed == 0 ? "Aucun fichier à supprimer." : $"{removed} élément(s) placé(s) dans la corbeille.");
+        });
         _tray.UpdateCheckRequested += CheckForUpdatesFromTray;
         _tray.PauseChanged += SetPaused;
         _tray.ExitRequested += () => Shutdown();
@@ -244,11 +299,22 @@ public partial class App : Application, IPanelHost
         _hotkey.Pressed += OnHotkeyPressed;
         ApplyHotkey(notifyOnFailure: true);
 
-        _instance!.ArgumentsReceived += args => Dispatcher.BeginInvoke(() => HandleCommandLine(CommandLine.Parse(args)));
+        _instance!.ArgumentsReceived += args => Dispatcher.BeginInvoke(() =>
+        {
+            if (args is [CommandLine.NotifyArgument, var title, var text, ..])
+            {
+                // Sent by the PDF editor process, which has no tray of its own.
+                _tray?.Notify(title, text, args.Length > 3 ? args[3] : null);
+                return;
+            }
+
+            HandleCommandLine(CommandLine.Parse(args));
+        });
         _instance.Listen();
 
         var commandLine = CommandLine.Parse(arguments);
-        if (!_settings.FirstRunDone)
+        var firstRun = !_settings.FirstRunDone;
+        if (firstRun)
         {
             CompleteFirstRun();
             commandLine = commandLine with { Background = true };
@@ -265,6 +331,33 @@ public partial class App : Application, IPanelHost
 
         HandleCommandLine(commandLine);
         ScheduleIdleRelief();
+        ShowNewsOnce(firstRun);
+    }
+
+    private static string? CurrentVersion => AppUpdater.CurrentVersion ?? typeof(App).Assembly.GetName().Version?.ToString(3);
+
+    /// <summary>Opens "Nouveautés" once per new version, closing by itself; a brand new install gets the welcome message instead.</summary>
+    private void ShowNewsOnce(bool firstRun)
+    {
+        var version = CurrentVersion;
+        if (version is null || _settings.LastSeenNews == version)
+        {
+            return;
+        }
+
+        if (firstRun)
+        {
+            MarkNewsSeen(version);
+            return;
+        }
+
+        OpenNews(autoClose: true);
+    }
+
+    private void MarkNewsSeen(string version)
+    {
+        _settings.LastSeenNews = version;
+        _store.Save(_settings);
     }
 
     private void CompleteFirstRun()
@@ -434,6 +527,8 @@ public partial class App : Application, IPanelHost
     }
 
     // ---- Windows ----
+
+    public void Notify(string title, string text, string? openPath = null, bool canUndo = false) => _tray?.Notify(title, text, openPath, canUndo);
 
     public void OpenSettings()
     {

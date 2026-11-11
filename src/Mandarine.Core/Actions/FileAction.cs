@@ -29,6 +29,16 @@ public abstract class FileAction
 
     public virtual int MinInputs => 1;
 
+    /// <summary>
+    /// One-page temporary PDF showing what the action would do to the first page of <paramref name="input"/> with
+    /// <see cref="ActionContext.Input"/>, or null when the action has no preview. The caller deletes the file.
+    /// </summary>
+    public virtual Task<string?> BuildPreviewAsync(string input, ActionContext context, CancellationToken cancellationToken) =>
+        Task.FromResult<string?>(null);
+
+    /// <summary>When set, the app asks this before running and passes the answer in <see cref="ActionContext.Input"/>.</summary>
+    public virtual ActionPrompt? Prompt => null;
+
     /// <summary>True when the action opens its own window and must not run in the conversion worker process.</summary>
     public virtual bool InProcess => false;
 

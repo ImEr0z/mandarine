@@ -73,6 +73,14 @@ public sealed class ActionCatalog
         yield return new ImageDataUriAction();
         yield return new PdfSplitAction();
         yield return new PdfRotateAction();
+        yield return new PdfDeletePagesAction();
+        yield return new PdfExtractPagesAction();
+        yield return new PdfPageNumbersAction();
+        yield return new PdfWatermarkAction();
+        yield return new PdfCropAction();
+        yield return new PdfExtractImagesAction();
+        yield return new PdfProtectAction();
+        yield return new PdfUnlockAction();
         yield return new ExtractAction();
         yield return new ZipAction();
         yield return new HashAction();

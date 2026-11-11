@@ -40,6 +40,26 @@ internal sealed class PdfEditorWindow : Window
         public bool Changed => IsNew ? Text.Length > 0 : Text != Original.Text || Line != Original;
     }
 
+    /// <summary>A signature (or any image) placed on a page; X and Y are the top-left corner in points from the top-left of the page.</summary>
+    private sealed class Stamp(int page, double x, double y, double width, double height, byte[] image, BitmapSource bitmap)
+    {
+        public int Page { get; } = page;
+
+        public double X { get; set; } = x;
+
+        public double Y { get; set; } = y;
+
+        public double Width { get; set; } = width;
+
+        public double Height { get; set; } = height;
+
+        public byte[] Image { get; } = image;
+
+        public BitmapSource Bitmap { get; } = bitmap;
+    }
+
+    private readonly List<Stamp> _stamps = [];
+    private byte[]? _pendingStamp;
     private readonly string _path;
     private PdfContent _content;
     private readonly Dictionary<int, List<Item>> _items = [];
@@ -126,6 +146,8 @@ internal sealed class PdfEditorWindow : Window
         _addText.Checked += (_, _) => _canvas.Cursor = Cursors.IBeam;
         _addText.Unchecked += (_, _) => _canvas.Cursor = null;
 
+        var sign = Tool("\uE70F", "Signer", "Dessiner une signature ou insérer une image, puis cliquer sur la page");
+        sign.Click += (_, _) => OpenSignMenu(sign);
         var save = Tool("", "Enregistrer", "Enregistrer dans le PDF (Ctrl+S)", accent: true);
         save.Click += (_, _) => Save();
         var previous = Tool("", null, "Page précédente (Page haut)");
@@ -159,7 +181,7 @@ internal sealed class PdfEditorWindow : Window
 
         // ---- Row 1: file, pages, add text, zoom.
         var left = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (UIElement element in new UIElement[] { save, Separator(), previous, _pageLabel, next, Separator(), _addText, _zones })
+        foreach (UIElement element in new UIElement[] { save, Separator(), previous, _pageLabel, next, Separator(), _addText, _zones, sign })
         {
             left.Children.Add(element);
         }
@@ -239,7 +261,13 @@ internal sealed class PdfEditorWindow : Window
         AddKey(Key.PageDown, ModifierKeys.None, () => ShowPage(_page + 1));
         AddKey(Key.Escape, ModifierKeys.None, () =>
         {
-            if (_addText.IsChecked == true)
+            if (_pendingStamp is not null)
+            {
+                _pendingStamp = null;
+                _canvas.Cursor = null;
+                _status.Text = string.Empty;
+            }
+            else if (_addText.IsChecked == true)
             {
                 _addText.IsChecked = false;
             }
@@ -337,7 +365,7 @@ internal sealed class PdfEditorWindow : Window
     }
 
     /// <summary>Flat toolbar button: Segoe icon, optional label. Accent fill for the main action.</summary>
-    private static ButtonBase Tool(string glyph, string? label, string tip, bool accent = false, bool toggle = false, bool compact = false)
+    internal static ButtonBase Tool(string glyph, string? label, string tip, bool accent = false, bool toggle = false, bool compact = false)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal };
         content.Children.Add(new TextBlock
@@ -528,7 +556,7 @@ internal sealed class PdfEditorWindow : Window
         _image.Height = _canvas.Height;
         for (var i = _canvas.Children.Count - 1; i >= 0; i--)
         {
-            if (_canvas.Children[i] is TextBox)
+            if (_canvas.Children[i] is TextBox or Image { Tag: Stamp })
             {
                 _canvas.Children.RemoveAt(i);
             }
@@ -546,6 +574,190 @@ internal sealed class PdfEditorWindow : Window
                 }
             }
         }
+
+        foreach (var stamp in _stamps.Where(s => s.Page == _page))
+        {
+            AddStamp(stamp);
+        }
+    }
+
+    // ---- Signature ----
+
+    private void OpenSignMenu(FrameworkElement anchor)
+    {
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
+        var names = Services.SignatureStore.Names();
+        foreach (var name in names)
+        {
+            var saved = new MenuItem { Header = name };
+            saved.Click += (_, _) => BeginPlacing(Services.SignatureStore.Load(name));
+            menu.Items.Add(saved);
+        }
+
+        if (names.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+        }
+
+        var draw = new MenuItem { Header = "Dessiner une nouvelle signature…" };
+        draw.Click += (_, _) =>
+        {
+            if (SignaturePad.Draw(this) is { } drawn)
+            {
+                if (drawn.SaveAs is not null)
+                {
+                    Services.SignatureStore.Save(drawn.SaveAs, drawn.Png);
+                }
+
+                BeginPlacing(drawn.Png);
+            }
+        };
+        var picture = new MenuItem { Header = "Insérer une image…" };
+        picture.Click += (_, _) =>
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Image de signature", Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp" };
+            if (dialog.ShowDialog(this) != true)
+            {
+                return;
+            }
+
+            var bytes = File.ReadAllBytes(dialog.FileName);
+            BeginPlacing(bytes);
+            if (_pendingStamp is not null
+                && MessageBox.Show(this, "Garder cette image dans vos signatures ?", "Mandarine", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(DecodeStamp(bytes)));
+                using var png = new MemoryStream();
+                encoder.Save(png);
+                Services.SignatureStore.Save(Path.GetFileNameWithoutExtension(dialog.FileName), png.ToArray());
+            }
+        };
+        menu.Items.Add(draw);
+        menu.Items.Add(picture);
+
+        if (names.Count > 0)
+        {
+            var remove = new MenuItem { Header = "Supprimer une signature" };
+            foreach (var name in names)
+            {
+                var item = new MenuItem { Header = name };
+                item.Click += (_, _) => Services.SignatureStore.Delete(name);
+                remove.Items.Add(item);
+            }
+
+            menu.Items.Add(remove);
+
+            var rename = new MenuItem { Header = "Renommer une signature" };
+            foreach (var name in names)
+            {
+                var item = new MenuItem { Header = name };
+                item.Click += (_, _) =>
+                {
+                    var answer = InputDialog.Ask("Renommer la signature", new Mandarine.Core.Actions.ActionPrompt("Nouveau nom", $"Actuellement : {name}"), "\uE70F");
+                    if (answer is not null && !Services.SignatureStore.Rename(name, answer))
+                    {
+                        MessageBox.Show(this, "Ce nom est déjà pris par une autre signature.", "Mandarine", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                };
+                rename.Items.Add(item);
+            }
+
+            menu.Items.Add(rename);
+        }
+
+        menu.IsOpen = true;
+    }
+
+    private void BeginPlacing(byte[]? image)
+    {
+        if (image is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = DecodeStamp(image);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or FileFormatException or InvalidOperationException)
+        {
+            MessageBox.Show(this, "Cette image ne peut pas être lue.", "Mandarine", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _addText.IsChecked = false;
+        _pendingStamp = image;
+        _canvas.Cursor = Cursors.Cross;
+        _status.Text = "Cliquez sur la page pour placer la signature (Échap pour annuler).";
+    }
+
+    private static BitmapSource DecodeStamp(byte[] image)
+    {
+        using var stream = new MemoryStream(image);
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit();
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.StreamSource = stream;
+        bitmap.EndInit();
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    private void AddStamp(Stamp stamp)
+    {
+        var picture = new Image { Source = stamp.Bitmap, Width = stamp.Width * _scale, Height = stamp.Height * _scale, Tag = stamp, Cursor = Cursors.SizeAll, ToolTip = "Glisser pour déplacer, molette pour agrandir" };
+        Canvas.SetLeft(picture, stamp.X * _scale);
+        Canvas.SetTop(picture, stamp.Y * _scale);
+        Point? grab = null;
+        picture.MouseLeftButtonDown += (_, e) =>
+        {
+            grab = e.GetPosition(_canvas);
+            picture.CaptureMouse();
+            e.Handled = true;
+        };
+        picture.MouseMove += (_, e) =>
+        {
+            if (grab is { } from && picture.IsMouseCaptured)
+            {
+                var now = e.GetPosition(_canvas);
+                var (pageWidth, pageHeight) = _content.Pages[stamp.Page];
+                stamp.X = Math.Clamp(stamp.X + (now.X - from.X) / _scale, 0, Math.Max(0, pageWidth - stamp.Width));
+                stamp.Y = Math.Clamp(stamp.Y + (now.Y - from.Y) / _scale, 0, Math.Max(0, pageHeight - stamp.Height));
+                grab = now;
+                Canvas.SetLeft(picture, stamp.X * _scale);
+                Canvas.SetTop(picture, stamp.Y * _scale);
+                MarkDirty();
+            }
+        };
+        picture.MouseLeftButtonUp += (_, _) =>
+        {
+            grab = null;
+            picture.ReleaseMouseCapture();
+        };
+        picture.MouseWheel += (_, e) =>
+        {
+            var factor = e.Delta > 0 ? 1.1 : 1 / 1.1;
+            stamp.X += stamp.Width * (1 - factor) / 2;
+            stamp.Y += stamp.Height * (1 - factor) / 2;
+            stamp.Width *= factor;
+            stamp.Height *= factor;
+            picture.Width = stamp.Width * _scale;
+            picture.Height = stamp.Height * _scale;
+            Canvas.SetLeft(picture, stamp.X * _scale);
+            Canvas.SetTop(picture, stamp.Y * _scale);
+            MarkDirty();
+            e.Handled = true;
+        };
+        var delete = new MenuItem { Header = "Supprimer la signature" };
+        delete.Click += (_, _) =>
+        {
+            _stamps.Remove(stamp);
+            _canvas.Children.Remove(picture);
+            MarkDirty();
+        };
+        picture.ContextMenu = new ContextMenu { Items = { delete } };
+        _canvas.Children.Add(picture);
     }
 
     // ---- Text boxes ----
@@ -746,6 +958,25 @@ internal sealed class PdfEditorWindow : Window
 
     private void OnCanvasClick(object sender, MouseButtonEventArgs e)
     {
+        if (_pendingStamp is { } pending && e.OriginalSource is not TextBox)
+        {
+            var bitmap = DecodeStamp(pending);
+            var (sheetWidth, sheetHeight) = _content.Pages[_page];
+            var width = Math.Min(150, sheetWidth * 0.5);
+            var height = width * bitmap.PixelHeight / bitmap.PixelWidth;
+            var at = e.GetPosition(_canvas);
+            var stamp = new Stamp(_page, Math.Clamp(at.X / _scale - width / 2, 0, Math.Max(0, sheetWidth - width)),
+                Math.Clamp(at.Y / _scale - height / 2, 0, Math.Max(0, sheetHeight - height)), width, height, pending, bitmap);
+            _stamps.Add(stamp);
+            _pendingStamp = null;
+            _canvas.Cursor = null;
+            _status.Text = string.Empty;
+            AddStamp(stamp);
+            MarkDirty();
+            e.Handled = true;
+            return;
+        }
+
         if (_addText.IsChecked != true || e.OriginalSource is TextBox)
         {
             return;
@@ -771,7 +1002,7 @@ internal sealed class PdfEditorWindow : Window
         Keyboard.ClearFocus();
         var edits = _items.Values.SelectMany(i => i).Where(i => i.Changed)
             .Select(i => new PdfEdit(i.IsNew ? null : i.Original, i.Line with { Text = i.Text }, i.Background)).ToList();
-        if (edits.Count == 0)
+        if (edits.Count == 0 && _stamps.Count == 0)
         {
             _dirty = false;
             UpdateTitle();
@@ -781,8 +1012,14 @@ internal sealed class PdfEditorWindow : Window
 
         try
         {
-            PdfEditor.Save(_path, _path, edits);
+            PdfEditor.Save(_path, _path, edits, _stamps.Select(s => new PdfStamp(s.Page, s.X, s.Y, s.Width, s.Height, s.Image)).ToList());
             _dirty = false;
+            Services.TrayBridge.Notify(edits.Count == 0 ? "PDF signé" : "PDF modifié",
+                string.Join(" et ", new[]
+                {
+                    edits.Count > 0 ? $"{edits.Count} modification{(edits.Count > 1 ? "s" : string.Empty)}" : null,
+                    _stamps.Count > 0 ? $"{_stamps.Count} signature{(_stamps.Count > 1 ? "s" : string.Empty)}" : null,
+                }.OfType<string>()) + $" enregistrée(s) dans {Path.GetFileName(_path)}", _path);
             if (close)
             {
                 Close();

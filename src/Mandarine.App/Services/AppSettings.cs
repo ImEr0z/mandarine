@@ -58,6 +58,9 @@ public sealed class AppSettings
 
     public bool FirstRunDone { get; set; }
 
+    /// <summary>Version whose "Nouveautés" window was already shown; it opens once per new version.</summary>
+    public string? LastSeenNews { get; set; }
+
     /// <summary>Formats on a wheel (like Tangerine) or as a list.</summary>
     public PanelStyle Style { get; set; } = PanelStyle.Wheel;
 

@@ -260,7 +260,7 @@ internal sealed class ImageToolAction(
             (image, _) => image.Flop());
         yield return new ImageToolAction("image.grayscale", "Noir et blanc", "\uE790", "noir et blanc",
             (image, _) => image.Grayscale());
-        yield return new ImageToolAction("image.trim", "Rogner les marges", "\uE7A8", "rognée",
+        yield return new ImageToolAction("image.trim", "Rogner automatiquement", "\uE7A8", "rognée",
             (image, _) =>
             {
                 image.Trim();
